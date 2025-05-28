@@ -14,11 +14,25 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <LoadingScreen text="Authenticating..." />;
+    return <LoadingScreen text="Autenticando..." />;
   }
 
   if (!user) {
-    return <Navigate to="/" />;
+    return <Navigate to="/login" />;
+  }
+
+  return <>{children}</>;
+}
+
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <LoadingScreen text="Carregando..." />;
+  }
+
+  if (user) {
+    return <Navigate to="/dashboard" />;
   }
 
   return <>{children}</>;
@@ -28,9 +42,30 @@ function AppRoutes() {
   return (
     <>
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<LoginForm />} />
-        <Route path="/signup" element={<SignUpForm />} />
+        <Route
+          path="/"
+          element={
+            <PrivateRoute>
+              <Dashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <LoginForm />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/signup"
+          element={
+            <PublicRoute>
+              <SignUpForm />
+            </PublicRoute>
+          }
+        />
         <Route
           path="/dashboard"
           element={
@@ -39,12 +74,8 @@ function AppRoutes() {
             </PrivateRoute>
           }
         />
-        <Route
-          path="/success"
-          element={
-            <Success />
-          }
-        />
+        <Route path="/home" element={<Home />} />
+        <Route path="/success" element={<Success />} />
       </Routes>
       {import.meta.env.VITE_TEMPO === "true" && useRoutes(routes)}
     </>
@@ -54,7 +85,7 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <Suspense fallback={<LoadingScreen text="Loading application..." />}>
+      <Suspense fallback={<LoadingScreen text="Carregando aplicação..." />}>
         <AppRoutes />
       </Suspense>
       <Toaster />
