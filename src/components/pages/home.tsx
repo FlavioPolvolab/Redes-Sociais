@@ -66,20 +66,26 @@ export default function LandingPage() {
                       {user.email}
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="cursor-pointer">
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() => navigate("/profile")}
+                    >
                       <User className="mr-2 h-4 w-4" />
-                      Profile
+                      Perfil
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="cursor-pointer">
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() => navigate("/settings")}
+                    >
                       <Settings className="mr-2 h-4 w-4" />
-                      Settings
+                      Configurações
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="cursor-pointer"
                       onSelect={() => signOut()}
                     >
-                      Log out
+                      Sair
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -91,12 +97,12 @@ export default function LandingPage() {
                     variant="ghost"
                     className="text-sm font-light hover:text-gray-500"
                   >
-                    Sign In
+                    Entrar
                   </Button>
                 </Link>
                 <Link to="/signup">
                   <Button className="rounded-full bg-black text-white hover:bg-gray-800 text-sm px-4">
-                    Get Started
+                    Começar
                   </Button>
                 </Link>
               </>
@@ -109,26 +115,26 @@ export default function LandingPage() {
         {/* Hero section */}
         <section className="py-20 text-center">
           <h2 className="text-5xl font-semibold tracking-tight mb-1">
-            Social Media Content Approval
+            Sistema de Aprovação de Conteúdo
           </h2>
           <h3 className="text-2xl font-medium text-gray-500 mb-4">
-            Streamline your content review process with structured workflows and
-            seamless collaboration.
+            Simplifique seu processo de revisão de conteúdo com fluxos
+            estruturados e colaboração perfeita.
           </h3>
           <div className="flex justify-center space-x-6 text-xl text-blue-600">
             <Link to="/dashboard" className="flex items-center hover:underline">
-              View Dashboard <ChevronRight className="h-4 w-4" />
+              Ver Dashboard <ChevronRight className="h-4 w-4" />
             </Link>
             <Link to="/signup" className="flex items-center hover:underline">
-              Start Free Trial <ChevronRight className="h-4 w-4" />
+              Começar Gratuitamente <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
           <div className="mt-8 flex justify-center space-x-4">
             <div className="bg-blue-50 px-4 py-2 rounded-full text-sm font-medium text-blue-700">
-              For Content Creators
+              Para Criadores de Conteúdo
             </div>
             <div className="bg-green-50 px-4 py-2 rounded-full text-sm font-medium text-green-700">
-              For Approval Managers
+              Para Gerentes de Aprovação
             </div>
           </div>
         </section>
@@ -136,17 +142,18 @@ export default function LandingPage() {
         {/* Features section */}
         <section className="py-20 bg-[#f5f5f7] text-center">
           <h2 className="text-5xl font-semibold tracking-tight mb-1">
-            Streamlined Workflow
+            Fluxo de Trabalho Simplificado
           </h2>
           <h3 className="text-2xl font-medium text-gray-500 mb-4">
-            Everything you need for efficient content approval and collaboration
+            Tudo que você precisa para aprovação eficiente de conteúdo e
+            colaboração
           </h3>
           <div className="flex justify-center space-x-6 text-xl text-blue-600">
             <Link to="/dashboard" className="flex items-center hover:underline">
-              Try the workflow <ChevronRight className="h-4 w-4" />
+              Experimentar o fluxo <ChevronRight className="h-4 w-4" />
             </Link>
             <Link to="/signup" className="flex items-center hover:underline">
-              Get started today <ChevronRight className="h-4 w-4" />
+              Começar hoje <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
           <div className="mt-8 max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -155,11 +162,11 @@ export default function LandingPage() {
                 <Upload className="h-6 w-6 text-blue-600" />
               </div>
               <h4 className="text-xl font-medium mb-2">
-                Easy Content Submission
+                Submissão Fácil de Conteúdo
               </h4>
               <p className="text-gray-500">
-                Drag-and-drop interface for uploading images, videos, and PDFs
-                with accompanying text content.
+                Interface de arrastar e soltar para upload de imagens, vídeos e
+                PDFs com conteúdo de texto acompanhante.
               </p>
             </div>
             <div className="bg-white p-8 rounded-2xl shadow-sm text-left">
@@ -167,11 +174,11 @@ export default function LandingPage() {
                 <CheckCircle className="h-6 w-6 text-purple-600" />
               </div>
               <h4 className="text-xl font-medium mb-2">
-                Structured Approval Process
+                Processo de Aprovação Estruturado
               </h4>
               <p className="text-gray-500">
-                Clean dashboard for reviewers with approval/rejection buttons
-                and mandatory comment fields.
+                Dashboard limpo para revisores com botões de aprovação/rejeição
+                e campos de comentários obrigatórios.
               </p>
             </div>
             <div className="bg-white p-8 rounded-2xl shadow-sm text-left">
@@ -179,11 +186,11 @@ export default function LandingPage() {
                 <Clock className="h-6 w-6 text-green-600" />
               </div>
               <h4 className="text-xl font-medium mb-2">
-                Complete Version History
+                Histórico Completo de Versões
               </h4>
               <p className="text-gray-500">
-                Detailed timeline showing all interactions, comments, and file
-                versions with timestamps.
+                Timeline detalhada mostrando todas as interações, comentários e
+                versões de arquivos com timestamps.
               </p>
             </div>
           </div>
@@ -193,55 +200,55 @@ export default function LandingPage() {
         <section className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3">
           <div className="bg-[#f5f5f7] rounded-3xl p-12 text-center">
             <h2 className="text-4xl font-semibold tracking-tight mb-1">
-              Role-Based Access
+              Acesso Baseado em Funções
             </h2>
             <h3 className="text-xl font-medium text-gray-500 mb-4">
-              Secure authentication with distinct user roles
+              Autenticação segura com funções de usuário distintas
             </h3>
             <div className="flex justify-center space-x-6 text-lg text-blue-600">
               <Link to="/login" className="flex items-center hover:underline">
-                Sign in <ChevronRight className="h-4 w-4" />
+                Entrar <ChevronRight className="h-4 w-4" />
               </Link>
               <Link to="/signup" className="flex items-center hover:underline">
-                Create account <ChevronRight className="h-4 w-4" />
+                Criar conta <ChevronRight className="h-4 w-4" />
               </Link>
             </div>
             <div className="mt-4 bg-white p-6 rounded-xl shadow-sm max-w-sm mx-auto">
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-3 bg-blue-50 rounded-md">
                   <span className="text-sm font-medium text-blue-700">
-                    Content Creator
+                    Criador de Conteúdo
                   </span>
                   <Upload className="h-4 w-4 text-blue-600" />
                 </div>
                 <div className="flex items-center justify-between p-3 bg-green-50 rounded-md">
                   <span className="text-sm font-medium text-green-700">
-                    Approval Manager
+                    Gerente de Aprovação
                   </span>
                   <CheckCircle className="h-4 w-4 text-green-600" />
                 </div>
                 <div className="text-xs text-gray-500 text-center pt-2">
-                  Choose your role during registration
+                  Escolha sua função durante o registro
                 </div>
               </div>
             </div>
           </div>
           <div className="bg-[#f5f5f7] rounded-3xl p-12 text-center">
             <h2 className="text-4xl font-semibold tracking-tight mb-1">
-              Real-time Collaboration
+              Colaboração em Tempo Real
             </h2>
             <h3 className="text-xl font-medium text-gray-500 mb-4">
-              Instant notifications and seamless teamwork
+              Notificações instantâneas e trabalho em equipe perfeito
             </h3>
             <div className="flex justify-center space-x-6 text-lg text-blue-600">
               <Link
                 to="/dashboard"
                 className="flex items-center hover:underline"
               >
-                View dashboard <ChevronRight className="h-4 w-4" />
+                Ver dashboard <ChevronRight className="h-4 w-4" />
               </Link>
               <Link to="/signup" className="flex items-center hover:underline">
-                Join team <ChevronRight className="h-4 w-4" />
+                Juntar-se à equipe <ChevronRight className="h-4 w-4" />
               </Link>
             </div>
             <div className="mt-4 bg-white p-6 rounded-xl shadow-sm max-w-sm mx-auto">
@@ -249,19 +256,19 @@ export default function LandingPage() {
                 <div className="flex items-center space-x-3 p-2 bg-yellow-50 rounded-md">
                   <div className="h-2 w-2 bg-yellow-400 rounded-full animate-pulse"></div>
                   <span className="text-xs text-gray-700">
-                    New submission pending
+                    Nova submissão pendente
                   </span>
                 </div>
                 <div className="flex items-center space-x-3 p-2 bg-green-50 rounded-md">
                   <CheckCircle className="h-3 w-3 text-green-500" />
                   <span className="text-xs text-gray-700">
-                    Content approved
+                    Conteúdo aprovado
                   </span>
                 </div>
                 <div className="flex items-center space-x-3 p-2 bg-blue-50 rounded-md">
                   <Users className="h-3 w-3 text-blue-500" />
                   <span className="text-xs text-gray-700">
-                    Team member added comment
+                    Membro da equipe adicionou comentário
                   </span>
                 </div>
               </div>
@@ -281,7 +288,7 @@ export default function LandingPage() {
               <ul className="space-y-2">
                 <li>
                   <Link to="/" className="hover:underline">
-                    Features
+                    Recursos
                   </Link>
                 </li>
                 <li>
@@ -291,56 +298,56 @@ export default function LandingPage() {
                 </li>
                 <li>
                   <Link to="/" className="hover:underline">
-                    Workflow
+                    Fluxo de Trabalho
                   </Link>
                 </li>
                 <li>
                   <Link to="/" className="hover:underline">
-                    Pricing
+                    Preços
                   </Link>
                 </li>
               </ul>
             </div>
             <div>
               <h4 className="font-medium text-sm text-gray-900 mb-4">
-                For Teams
+                Para Equipes
               </h4>
               <ul className="space-y-2">
                 <li>
                   <Link to="/signup" className="hover:underline">
-                    Content Creators
+                    Criadores de Conteúdo
                   </Link>
                 </li>
                 <li>
                   <Link to="/signup" className="hover:underline">
-                    Approval Managers
+                    Gerentes de Aprovação
                   </Link>
                 </li>
                 <li>
                   <Link to="/" className="hover:underline">
-                    Enterprise
+                    Empresarial
                   </Link>
                 </li>
                 <li>
                   <Link to="/" className="hover:underline">
-                    Integrations
+                    Integrações
                   </Link>
                 </li>
               </ul>
             </div>
             <div>
               <h4 className="font-medium text-sm text-gray-900 mb-4">
-                Support
+                Suporte
               </h4>
               <ul className="space-y-2">
                 <li>
-                  <Link to="/" className="hover:underline">
-                    Help Center
+                  <Link to="/help" className="hover:underline">
+                    Central de Ajuda
                   </Link>
                 </li>
                 <li>
-                  <Link to="/" className="hover:underline">
-                    Contact Us
+                  <Link to="/help" className="hover:underline">
+                    Fale Conosco
                   </Link>
                 </li>
                 <li>
@@ -350,7 +357,7 @@ export default function LandingPage() {
                 </li>
                 <li>
                   <Link to="/" className="hover:underline">
-                    Community
+                    Comunidade
                   </Link>
                 </li>
               </ul>
@@ -360,22 +367,22 @@ export default function LandingPage() {
               <ul className="space-y-2">
                 <li>
                   <Link to="/" className="hover:underline">
-                    Privacy Policy
+                    Política de Privacidade
                   </Link>
                 </li>
                 <li>
                   <Link to="/" className="hover:underline">
-                    Terms of Service
+                    Termos de Serviço
                   </Link>
                 </li>
                 <li>
                   <Link to="/" className="hover:underline">
-                    Security
+                    Segurança
                   </Link>
                 </li>
                 <li>
                   <Link to="/" className="hover:underline">
-                    GDPR
+                    LGPD
                   </Link>
                 </li>
               </ul>
