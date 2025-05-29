@@ -213,69 +213,33 @@ export default function ContentDetails() {
             </div>
 
             <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Informações da Solicitação</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
+              <CardHeader>
+                <CardTitle>Informações da Solicitação</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    {solicitacao.titulo}
+                  </h3>
+                  <p className="text-gray-600">{solicitacao.descricao}</p>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={solicitacao.solicitante_avatar} />
+                    <AvatarFallback>
+                      {solicitacao.solicitante_nome[0]}
+                    </AvatarFallback>
+                  </Avatar>
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      {solicitacao.titulo}
-                    </h3>
-                    <p className="text-gray-600">{solicitacao.descricao}</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {solicitacao.solicitante_nome}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {solicitacao.solicitante_email}
+                    </p>
                   </div>
-
-                  <div className="flex items-center space-x-4">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={solicitacao.solicitante_avatar} />
-                      <AvatarFallback>
-                        {solicitacao.solicitante_nome[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {solicitacao.solicitante_nome}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {solicitacao.solicitante_email}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900 mb-3">
-                      Arquivos Anexados
-                    </h4>
-                    <div className="space-y-2">
-                      {solicitacao.arquivos.map((file, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                        >
-                          <div className="flex items-center space-x-3">
-                            {getFileIcon(file.tipo)}
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">
-                                {file.nome}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {formatFileSize(file.tamanho)}
-                              </p>
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleFileClick(file)}
-                          >
-                            Visualizar
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+              </CardContent>
 
               <Card>
                 <CardHeader>
@@ -315,14 +279,52 @@ export default function ContentDetails() {
                               })}
                             </p>
                           </div>
-                          {item.comentario && (
-                            <p className="mt-2 text-sm text-gray-600">
-                              {item.comentario}
-                            </p>
-                          )}
+                          <p className="mt-2 text-sm text-gray-600">
+                            {item.comentario}
+                          </p>
                         </div>
                       </div>
                     ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Arquivos Anexados</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 mb-3">
+                      Arquivos Anexados
+                    </h4>
+                    <div className="space-y-2">
+                      {solicitacao.arquivos.map((file, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                        >
+                          <div className="flex items-center space-x-3">
+                            {getFileIcon(file.tipo)}
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">
+                                {file.nome}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {formatFileSize(file.tamanho)}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleFileClick(file)}
+                          >
+                            Visualizar
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -383,6 +385,27 @@ export default function ContentDetails() {
                   )}
                 </DialogContent>
               </Dialog>
+
+              {solicitacao.status === 'revisao_solicitada' && (
+                <Button
+                  className="mt-4"
+                  onClick={async () => {
+                    try {
+                      const { error } = await supabase
+                        .from('solicitacoes')
+                        .update({ status: 'pendente' })
+                        .eq('id', solicitacao.id);
+                      if (error) throw error;
+                      toast({ title: 'Sucesso!', description: 'Solicitação enviada para aprovação novamente.' });
+                      fetchSolicitacao();
+                    } catch (error) {
+                      toast({ title: 'Erro', description: 'Não foi possível reenviar para aprovação.', variant: 'destructive' });
+                    }
+                  }}
+                >
+                  Enviar para aprovação novamente
+                </Button>
+              )}
             </div>
           </div>
         </main>

@@ -13,10 +13,13 @@ import {
   Image,
   Video,
   Loader2,
+  Clock,
 } from "lucide-react";
 import TopNavigation from "../dashboard/layout/TopNavigation";
 import Sidebar from "../dashboard/layout/Sidebar";
 import { supabase } from "../../../supabase/supabase";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface Submission {
   id: string;
@@ -49,21 +52,28 @@ export default function ContentApproval() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const [historico, setHistorico] = useState<any[]>([]);
 
   useEffect(() => {
     fetchSubmissions();
   }, []);
+
+  useEffect(() => {
+    if (selectedSubmission) {
+      fetchHistorico(selectedSubmission.id);
+    } else {
+      setHistorico([]);
+    }
+  }, [selectedSubmission]);
 
   const fetchSubmissions = async () => {
     try {
       const { data, error } = await supabase
         .from("vw_solicitacoes")
         .select("*")
-        .eq("status", "pendente")
+        .in("status", ["pendente", "revisao_solicitada"])
         .order("criado_em", { ascending: false });
-
       if (error) throw error;
-
       setSubmissions(data || []);
     } catch (error) {
       toast({
@@ -73,6 +83,20 @@ export default function ContentApproval() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchHistorico = async (solicitacaoId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("vw_historico_solicitacoes")
+        .select("*")
+        .eq("solicitacao_id", solicitacaoId)
+        .order("criado_em", { ascending: true });
+      if (error) throw error;
+      setHistorico(data || []);
+    } catch (error) {
+      // pode exibir toast se quiser
     }
   };
 
@@ -112,6 +136,7 @@ export default function ContentApproval() {
             solicitacao_id: selectedSubmission.id,
             usuario_id: user.id,
             acao: action,
+            comentario: comment,
             detalhes: {
               status_anterior: selectedSubmission.status,
               status_novo: action,
@@ -138,20 +163,23 @@ export default function ContentApproval() {
         if (comentarioError) throw comentarioError;
       }
 
+      // 4. Atualizar o histórico na interface
+      await fetchHistorico(selectedSubmission.id);
+
       toast({
         title: "Sucesso!",
         description: `Solicitação ${action === "aprovado" ? "aprovada" : action === "rejeitado" ? "rejeitada" : "enviada para revisão"} com sucesso.`,
       });
 
-      // Atualizar lista e limpar seleção
+      // 5. Atualizar lista e limpar seleção
       await fetchSubmissions();
       setSelectedSubmission(null);
       setComment("");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao processar solicitação:", error);
       toast({
         title: "Erro",
-        description: "Não foi possível processar a solicitação.",
+        description: error.message || "Não foi possível processar a solicitação.",
         variant: "destructive",
       });
     } finally {
@@ -320,6 +348,54 @@ export default function ContentApproval() {
 
                     <div>
                       <h4 className="text-sm font-medium text-gray-900 mb-3">
+                        Histórico da Solicitação
+                      </h4>
+                      <div className="space-y-4">
+                        {historico.length === 0 && <p className="text-gray-500">Nenhum histórico encontrado.</p>}
+                        {historico.map((item) => (
+                          <div key={item.id} className="flex items-start space-x-4 border-b border-gray-100 pb-4 last:border-0 last:pb-0">
+                            <div className="flex-shrink-0">
+                              {item.acao === "aprovado" && <CheckCircle className="h-5 w-5 text-green-500" />}
+                              {item.acao === "rejeitado" && <XCircle className="h-5 w-5 text-red-500" />}
+                              {item.acao === "revisao_solicitada" && <MessageSquare className="h-5 w-5 text-yellow-500" />}
+                              {item.acao === "comentario_adicionado" && <MessageSquare className="h-5 w-5 text-blue-500" />}
+                              {item.acao === "criado" && <Clock className="h-5 w-5 text-gray-500" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                  <Avatar className="h-6 w-6">
+                                    <AvatarImage src={item.usuario_avatar} />
+                                    <AvatarFallback>
+                                      {item.usuario_nome[0]}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-900">
+                                      {item.usuario_nome}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      {item.acao_descricao}
+                                    </p>
+                                  </div>
+                                </div>
+                                <p className="text-sm text-gray-500">
+                                  {format(new Date(item.criado_em), "dd 'de' MMMM 'às' HH:mm", {
+                                    locale: ptBR,
+                                  })}
+                                </p>
+                              </div>
+                              <p className="mt-2 text-sm text-gray-600">
+                                {item.comentario}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-900 mb-3">
                         Comentário
                       </h4>
                       <Textarea
@@ -363,6 +439,33 @@ export default function ContentApproval() {
                           </>
                         )}
                       </Button>
+                      {selectedSubmission?.status === 'revisao_solicitada' && (
+                        <Button
+                          className="mt-2"
+                          onClick={async () => {
+                            setIsProcessing(true);
+                            try {
+                              const { data: { user } } = await supabase.auth.getUser();
+                              if (!user) throw new Error("Usuário não autenticado");
+                              const { error } = await supabase
+                                .from("solicitacoes")
+                                .update({ status: "pendente" })
+                                .eq("id", selectedSubmission.id);
+                              if (error) throw error;
+                              toast({ title: "Sucesso!", description: "Solicitação enviada para aprovação novamente." });
+                              await fetchSubmissions();
+                              setSelectedSubmission(null);
+                            } catch (error) {
+                              toast({ title: "Erro", description: "Não foi possível reenviar para aprovação.", variant: "destructive" });
+                            } finally {
+                              setIsProcessing(false);
+                            }
+                          }}
+                          disabled={isProcessing}
+                        >
+                          Enviar para Aprovação
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

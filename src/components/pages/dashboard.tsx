@@ -14,12 +14,14 @@ import Sidebar from "../dashboard/layout/Sidebar";
 import { supabase } from "../../../supabase/supabase";
 import { useAuth } from "../../../supabase/auth";
 import { useNavigate } from "react-router-dom";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface DashboardStats {
   total: number;
   pendentes: number;
   aprovadas: number;
   rejeitadas: number;
+  revisao: number;
 }
 
 export default function Dashboard() {
@@ -27,12 +29,15 @@ export default function Dashboard() {
     total: 0,
     pendentes: 0,
     aprovadas: 0,
-    rejeitadas: 0
+    rejeitadas: 0,
+    revisao: 0
   });
   const [loading, setLoading] = useState(true);
   const { usuario } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [modalRevisaoOpen, setModalRevisaoOpen] = useState(false);
+  const [solicitacoesRevisao, setSolicitacoesRevisao] = useState<any[]>([]);
 
   useEffect(() => {
     fetchStats();
@@ -42,37 +47,47 @@ export default function Dashboard() {
     try {
       if (!usuario) return;
 
-      let baseQuery = supabase.from("solicitacoes");
-      let filter = baseQuery;
-      if (usuario.perfil === "solicitante") {
-        filter = filter.select("*", { count: "exact" }).eq("solicitante_id", usuario.id);
-      } else {
-        filter = filter.select("*", { count: "exact" });
-      }
+      // Filtros para solicitante
+      const solicitanteFilter = usuario.perfil === "solicitante"
+        ? { solicitante_id: usuario.id }
+        : {};
 
-      // Buscar total
-      const { count: total } = await filter;
+      // Total
+      const { count: total } = await supabase
+        .from("solicitacoes")
+        .select("*", { count: "exact", head: true })
+        .match(solicitanteFilter);
 
-      // Buscar pendentes
-      const { count: pendentes } = await baseQuery.select("*", { count: "exact" })
-        .eq("status", "pendente")
-        .eq(usuario.perfil === "solicitante" ? "solicitante_id" : undefined, usuario.perfil === "solicitante" ? usuario.id : undefined);
+      // Pendentes
+      const { count: pendentes } = await supabase
+        .from("solicitacoes")
+        .select("*", { count: "exact", head: true })
+        .match({ ...solicitanteFilter, status: "pendente" });
 
-      // Buscar aprovadas
-      const { count: aprovadas } = await baseQuery.select("*", { count: "exact" })
-        .eq("status", "aprovado")
-        .eq(usuario.perfil === "solicitante" ? "solicitante_id" : undefined, usuario.perfil === "solicitante" ? usuario.id : undefined);
+      // Aprovadas
+      const { count: aprovadas } = await supabase
+        .from("solicitacoes")
+        .select("*", { count: "exact", head: true })
+        .match({ ...solicitanteFilter, status: "aprovado" });
 
-      // Buscar rejeitadas
-      const { count: rejeitadas } = await baseQuery.select("*", { count: "exact" })
-        .eq("status", "rejeitado")
-        .eq(usuario.perfil === "solicitante" ? "solicitante_id" : undefined, usuario.perfil === "solicitante" ? usuario.id : undefined);
+      // Rejeitadas
+      const { count: rejeitadas } = await supabase
+        .from("solicitacoes")
+        .select("*", { count: "exact", head: true })
+        .match({ ...solicitanteFilter, status: "rejeitado" });
+
+      // Revisão
+      const { count: revisao } = await supabase
+        .from("solicitacoes")
+        .select("*", { count: "exact", head: true })
+        .match({ ...solicitanteFilter, status: "revisao_solicitada" });
 
       setStats({
         total: total || 0,
         pendentes: pendentes || 0,
         aprovadas: aprovadas || 0,
-        rejeitadas: rejeitadas || 0
+        rejeitadas: rejeitadas || 0,
+        revisao: revisao || 0
       });
     } catch (error) {
       console.error("Erro ao buscar estatísticas:", error);
@@ -97,6 +112,15 @@ export default function Dashboard() {
       default:
         return "Bem-vindo ao sistema";
     }
+  };
+
+  const fetchSolicitacoesRevisao = async () => {
+    const { data, error } = await supabase
+      .from('vw_solicitacoes')
+      .select('id, titulo, descricao, criado_em')
+      .eq('status', 'revisao_solicitada')
+      .order('criado_em', { ascending: true });
+    setSolicitacoesRevisao(data || []);
   };
 
   if (loading) {
@@ -124,7 +148,7 @@ export default function Dashboard() {
               <p className="text-gray-600">{getWelcomeMessage()}</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -162,6 +186,22 @@ export default function Dashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-500">
+                        Em Revisão
+                      </p>
+                      <h3 className="text-2xl font-semibold text-blue-600 mt-1">
+                        {stats.revisao}
+                      </h3>
+                    </div>
+                    <Clock className="h-8 w-8 text-blue-400" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">
                         Aprovadas
                       </p>
                       <h3 className="text-2xl font-semibold text-green-600 mt-1">
@@ -190,39 +230,57 @@ export default function Dashboard() {
               </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {usuario?.perfil === "solicitante" && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Criar Nova Solicitação</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    <p className="text-gray-600 mb-4">
-                      Clique no botão abaixo para criar uma nova solicitação de conteúdo.
-                    </p>
-                    <Button onClick={() => navigate("/solicitacoes/nova")}>
-                      Nova Solicitação
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-
-              {(usuario?.perfil === "aprovador" || usuario?.perfil === "admin") && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Solicitações Pendentes</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    <p className="text-gray-600 mb-4">
-                      Você tem {stats.pendentes} solicitações aguardando aprovação.
-                    </p>
-                    <Button onClick={() => navigate("/solicitacoes/aprovacao")}>
-                      Ver Solicitações
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Solicitações em Revisão</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600 mb-4">
+                    Você tem {stats.revisao} solicitaç{stats.revisao === 1 ? 'ão' : 'ões'} aguardando revisão.
+                  </p>
+                  <Button
+                    onClick={async () => {
+                      setModalRevisaoOpen(true);
+                      await fetchSolicitacoesRevisao();
+                    }}
+                  >
+                    Ver Solicitações em Revisão
+                  </Button>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Solicitações Pendentes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600 mb-4">
+                    Você tem {stats.pendentes} solicitaç{stats.pendentes === 1 ? 'ão' : 'ões'} aguardando aprovação.
+                  </p>
+                  <Button onClick={() => navigate("/solicitacoes/aprovacao")}>Ver Solicitações</Button>
+                </CardContent>
+              </Card>
             </div>
+
+            <Dialog open={modalRevisaoOpen} onOpenChange={setModalRevisaoOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Solicitações em Revisão</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {solicitacoesRevisao.length === 0 && (
+                    <p className="text-gray-500">Nenhuma solicitação em revisão encontrada.</p>
+                  )}
+                  {solicitacoesRevisao.map((s) => (
+                    <div key={s.id} className="p-3 border rounded cursor-pointer hover:bg-gray-50" onClick={() => { setModalRevisaoOpen(false); navigate(`/solicitacoes/detalhes/${s.id}`); }}>
+                      <div className="font-medium text-gray-900">{s.titulo}</div>
+                      <div className="text-xs text-gray-500 mb-1">{s.descricao}</div>
+                      <div className="text-xs text-gray-400">{new Date(s.criado_em).toLocaleString('pt-BR')}</div>
+                    </div>
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </main>
       </div>

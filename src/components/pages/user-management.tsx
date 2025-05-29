@@ -86,34 +86,39 @@ export default function UserManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
     try {
       // 1. Criar usuário no Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: novoUsuario.email,
         password: novoUsuario.senha,
+        options: {
+          data: {
+            full_name: novoUsuario.nome,
+            perfil: novoUsuario.perfil,
+          },
+        },
       });
-
       if (authError) throw authError;
 
-      // 2. Inserir informações adicionais na tabela usuarios
-      const { error: userError } = await supabase.from("usuarios").insert([
-        {
-          id: authData.user?.id,
-          email: novoUsuario.email,
-          nome: novoUsuario.nome,
-          perfil: novoUsuario.perfil,
-        },
-      ]);
-
-      if (userError) throw userError;
+      // 2. Inserir dados na tabela de usuários
+      if (authData.user) {
+        const { error: dbError } = await supabase
+          .from('usuarios')
+          .insert([
+            {
+              id: authData.user.id,
+              email: novoUsuario.email,
+              nome: novoUsuario.nome,
+              perfil: novoUsuario.perfil,
+            }
+          ]);
+        if (dbError) throw dbError;
+      }
 
       toast({
         title: "Sucesso!",
         description: "Usuário criado com sucesso.",
       });
-
-      // Limpar formulário e atualizar lista
       setNovoUsuario({
         email: "",
         senha: "",
@@ -121,10 +126,11 @@ export default function UserManagement() {
         perfil: "solicitante",
       });
       fetchUsuarios();
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Erro ao criar usuário:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível criar o usuário.",
+        description: error.message || "Não foi possível criar o usuário.",
         variant: "destructive",
       });
     } finally {
