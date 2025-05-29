@@ -8,13 +8,20 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
+  MessageSquare,
 } from "lucide-react";
 import TopNavigation from "../dashboard/layout/TopNavigation";
 import Sidebar from "../dashboard/layout/Sidebar";
 import { supabase } from "../../../supabase/supabase";
 import { useAuth } from "../../../supabase/auth";
 import { useNavigate } from "react-router-dom";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 
 interface DashboardStats {
   total: number;
@@ -30,7 +37,7 @@ export default function Dashboard() {
     pendentes: 0,
     aprovadas: 0,
     rejeitadas: 0,
-    revisao: 0
+    revisao: 0,
   });
   const [loading, setLoading] = useState(true);
   const { usuario } = useAuth();
@@ -48,9 +55,8 @@ export default function Dashboard() {
       if (!usuario) return;
 
       // Filtros para solicitante
-      const solicitanteFilter = usuario.perfil === "solicitante"
-        ? { solicitante_id: usuario.id }
-        : {};
+      const solicitanteFilter =
+        usuario.perfil === "solicitante" ? { solicitante_id: usuario.id } : {};
 
       // Total
       const { count: total } = await supabase
@@ -87,7 +93,7 @@ export default function Dashboard() {
         pendentes: pendentes || 0,
         aprovadas: aprovadas || 0,
         rejeitadas: rejeitadas || 0,
-        revisao: revisao || 0
+        revisao: revisao || 0,
       });
     } catch (error) {
       console.error("Erro ao buscar estatísticas:", error);
@@ -115,12 +121,42 @@ export default function Dashboard() {
   };
 
   const fetchSolicitacoesRevisao = async () => {
-    const { data, error } = await supabase
-      .from('vw_solicitacoes')
-      .select('id, titulo, descricao, criado_em')
-      .eq('status', 'revisao_solicitada')
-      .order('criado_em', { ascending: true });
-    setSolicitacoesRevisao(data || []);
+    try {
+      // Filtrar por usuário se for solicitante
+      let query = supabase
+        .from("vw_solicitacoes")
+        .select(
+          "id, titulo, descricao, criado_em, solicitante_nome, solicitante_email",
+        )
+        .eq("status", "revisao_solicitada")
+        .order("criado_em", { ascending: false });
+
+      // Se for solicitante, mostrar apenas suas próprias solicitações
+      if (usuario?.perfil === "solicitante") {
+        query = query.eq("solicitante_id", usuario.id);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("Erro ao buscar solicitações em revisão:", error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar as solicitações em revisão.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setSolicitacoesRevisao(data || []);
+    } catch (error) {
+      console.error("Erro ao buscar solicitações em revisão:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar as solicitações em revisão.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (loading) {
@@ -237,7 +273,8 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-gray-600 mb-4">
-                    Você tem {stats.revisao} solicitaç{stats.revisao === 1 ? 'ão' : 'ões'} aguardando revisão.
+                    Você tem {stats.revisao} solicitaç
+                    {stats.revisao === 1 ? "ão" : "ões"} aguardando revisão.
                   </p>
                   <Button
                     onClick={async () => {
@@ -255,9 +292,12 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-gray-600 mb-4">
-                    Você tem {stats.pendentes} solicitaç{stats.pendentes === 1 ? 'ão' : 'ões'} aguardando aprovação.
+                    Você tem {stats.pendentes} solicitaç
+                    {stats.pendentes === 1 ? "ão" : "ões"} aguardando aprovação.
                   </p>
-                  <Button onClick={() => navigate("/solicitacoes/aprovacao")}>Ver Solicitações</Button>
+                  <Button onClick={() => navigate("/solicitacoes/aprovacao")}>
+                    Ver Solicitações
+                  </Button>
                 </CardContent>
               </Card>
             </div>
@@ -269,13 +309,45 @@ export default function Dashboard() {
                 </DialogHeader>
                 <div className="space-y-4 max-h-96 overflow-y-auto">
                   {solicitacoesRevisao.length === 0 && (
-                    <p className="text-gray-500">Nenhuma solicitação em revisão encontrada.</p>
+                    <div className="text-center py-8">
+                      <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">
+                        Nenhuma solicitação em revisão encontrada.
+                      </p>
+                    </div>
                   )}
                   {solicitacoesRevisao.map((s) => (
-                    <div key={s.id} className="p-3 border rounded cursor-pointer hover:bg-gray-50" onClick={() => { setModalRevisaoOpen(false); navigate(`/solicitacoes/detalhes/${s.id}`); }}>
-                      <div className="font-medium text-gray-900">{s.titulo}</div>
-                      <div className="text-xs text-gray-500 mb-1">{s.descricao}</div>
-                      <div className="text-xs text-gray-400">{new Date(s.criado_em).toLocaleString('pt-BR')}</div>
+                    <div
+                      key={s.id}
+                      className="p-4 border border-blue-200 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
+                      onClick={() => {
+                        setModalRevisaoOpen(false);
+                        navigate(`/solicitacoes/${s.id}`);
+                      }}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900 mb-1">
+                            {s.titulo}
+                          </div>
+                          <div className="text-sm text-gray-600 mb-2 line-clamp-2">
+                            {s.descricao}
+                          </div>
+                          {s.solicitante_nome && (
+                            <div className="text-xs text-gray-500 mb-1">
+                              Solicitante: {s.solicitante_nome}
+                            </div>
+                          )}
+                          <div className="text-xs text-gray-400">
+                            {new Date(s.criado_em).toLocaleString("pt-BR")}
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <Badge className="bg-blue-100 text-blue-800">
+                            Em Revisão
+                          </Badge>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>

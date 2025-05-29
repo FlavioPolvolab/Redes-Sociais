@@ -45,9 +45,8 @@ interface Submission {
 
 export default function ContentApproval() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(
-    null
-  );
+  const [selectedSubmission, setSelectedSubmission] =
+    useState<Submission | null>(null);
   const [comment, setComment] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -71,7 +70,7 @@ export default function ContentApproval() {
       const { data, error } = await supabase
         .from("vw_solicitacoes")
         .select("*")
-        .in("status", ["pendente", "revisao_solicitada"])
+        .eq("status", "pendente")
         .order("criado_em", { ascending: false });
       if (error) throw error;
       setSubmissions(data || []);
@@ -100,19 +99,23 @@ export default function ContentApproval() {
     }
   };
 
-  const handleAction = async (action: "aprovado" | "rejeitado" | "revisao_solicitada") => {
+  const handleAction = async (
+    action: "aprovado" | "rejeitado" | "revisao_solicitada",
+  ) => {
     if (!selectedSubmission) return;
 
     setIsProcessing(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
       // 1. Atualizar status da solicitação
-      const updateData: any = { 
+      const updateData: any = {
         status: action,
-        aprovador_id: user.id
+        aprovador_id: user.id,
       };
 
       if (action === "aprovado") {
@@ -140,8 +143,8 @@ export default function ContentApproval() {
             detalhes: {
               status_anterior: selectedSubmission.status,
               status_novo: action,
-              motivo: comment
-            }
+              motivo: comment,
+            },
           },
         ]);
 
@@ -156,8 +159,8 @@ export default function ContentApproval() {
               solicitacao_id: selectedSubmission.id,
               usuario_id: user.id,
               conteudo: comment,
-              tipo: "revisao"
-            }
+              tipo: "revisao",
+            },
           ]);
 
         if (comentarioError) throw comentarioError;
@@ -179,7 +182,8 @@ export default function ContentApproval() {
       console.error("Erro ao processar solicitação:", error);
       toast({
         title: "Erro",
-        description: error.message || "Não foi possível processar a solicitação.",
+        description:
+          error.message || "Não foi possível processar a solicitação.",
         variant: "destructive",
       });
     } finally {
@@ -351,15 +355,32 @@ export default function ContentApproval() {
                         Histórico da Solicitação
                       </h4>
                       <div className="space-y-4">
-                        {historico.length === 0 && <p className="text-gray-500">Nenhum histórico encontrado.</p>}
+                        {historico.length === 0 && (
+                          <p className="text-gray-500">
+                            Nenhum histórico encontrado.
+                          </p>
+                        )}
                         {historico.map((item) => (
-                          <div key={item.id} className="flex items-start space-x-4 border-b border-gray-100 pb-4 last:border-0 last:pb-0">
+                          <div
+                            key={item.id}
+                            className="flex items-start space-x-4 border-b border-gray-100 pb-4 last:border-0 last:pb-0"
+                          >
                             <div className="flex-shrink-0">
-                              {item.acao === "aprovado" && <CheckCircle className="h-5 w-5 text-green-500" />}
-                              {item.acao === "rejeitado" && <XCircle className="h-5 w-5 text-red-500" />}
-                              {item.acao === "revisao_solicitada" && <MessageSquare className="h-5 w-5 text-yellow-500" />}
-                              {item.acao === "comentario_adicionado" && <MessageSquare className="h-5 w-5 text-blue-500" />}
-                              {item.acao === "criado" && <Clock className="h-5 w-5 text-gray-500" />}
+                              {item.acao === "aprovado" && (
+                                <CheckCircle className="h-5 w-5 text-green-500" />
+                              )}
+                              {item.acao === "rejeitado" && (
+                                <XCircle className="h-5 w-5 text-red-500" />
+                              )}
+                              {item.acao === "revisao_solicitada" && (
+                                <MessageSquare className="h-5 w-5 text-yellow-500" />
+                              )}
+                              {item.acao === "comentario_adicionado" && (
+                                <MessageSquare className="h-5 w-5 text-blue-500" />
+                              )}
+                              {item.acao === "criado" && (
+                                <Clock className="h-5 w-5 text-gray-500" />
+                              )}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between">
@@ -380,9 +401,13 @@ export default function ContentApproval() {
                                   </div>
                                 </div>
                                 <p className="text-sm text-gray-500">
-                                  {format(new Date(item.criado_em), "dd 'de' MMMM 'às' HH:mm", {
-                                    locale: ptBR,
-                                  })}
+                                  {format(
+                                    new Date(item.criado_em),
+                                    "dd 'de' MMMM 'às' HH:mm",
+                                    {
+                                      locale: ptBR,
+                                    },
+                                  )}
                                 </p>
                               </div>
                               <p className="mt-2 text-sm text-gray-600">
@@ -439,33 +464,6 @@ export default function ContentApproval() {
                           </>
                         )}
                       </Button>
-                      {selectedSubmission?.status === 'revisao_solicitada' && (
-                        <Button
-                          className="mt-2"
-                          onClick={async () => {
-                            setIsProcessing(true);
-                            try {
-                              const { data: { user } } = await supabase.auth.getUser();
-                              if (!user) throw new Error("Usuário não autenticado");
-                              const { error } = await supabase
-                                .from("solicitacoes")
-                                .update({ status: "pendente" })
-                                .eq("id", selectedSubmission.id);
-                              if (error) throw error;
-                              toast({ title: "Sucesso!", description: "Solicitação enviada para aprovação novamente." });
-                              await fetchSubmissions();
-                              setSelectedSubmission(null);
-                            } catch (error) {
-                              toast({ title: "Erro", description: "Não foi possível reenviar para aprovação.", variant: "destructive" });
-                            } finally {
-                              setIsProcessing(false);
-                            }
-                          }}
-                          disabled={isProcessing}
-                        >
-                          Enviar para Aprovação
-                        </Button>
-                      )}
                     </div>
                   </CardContent>
                 </Card>

@@ -19,7 +19,12 @@ import { supabase } from "../../../supabase/supabase";
 
 interface HistoryEntry {
   id: string;
-  acao: "criado" | "aprovado" | "rejeitado" | "revisao_solicitada" | "comentario";
+  acao:
+    | "criado"
+    | "aprovado"
+    | "rejeitado"
+    | "revisao_solicitada"
+    | "comentario";
   solicitacao_id: string;
   solicitacao: {
     titulo: string;
@@ -49,25 +54,34 @@ export default function VersionHistory() {
   const fetchHistory = async () => {
     try {
       const { data, error } = await supabase
-        .from("historico_solicitacoes")
-        .select(`
-          *,
-          solicitacao:solicitacoes (
-            titulo
-          ),
-          usuario:usuarios (
-            nome_completo,
-            email,
-            avatar_url,
-            perfil
-          )
-        `)
+        .from("vw_historico_solicitacoes")
+        .select("*")
         .order("criado_em", { ascending: false });
 
       if (error) throw error;
 
-      setHistory(data || []);
+      // Transformar os dados para o formato esperado
+      const transformedData = (data || []).map((item) => ({
+        id: item.id,
+        acao: item.acao,
+        solicitacao_id: item.solicitacao_id,
+        solicitacao: {
+          titulo: item.solicitacao_titulo,
+        },
+        usuario: {
+          nome_completo: item.usuario_nome,
+          email: item.usuario_email,
+          avatar_url: item.usuario_avatar,
+          perfil: item.usuario_perfil,
+        },
+        criado_em: item.criado_em,
+        comentario: item.comentario,
+        detalhes: item.detalhes,
+      }));
+
+      setHistory(transformedData);
     } catch (error) {
+      console.error("Erro ao carregar histórico:", error);
       toast({
         title: "Erro",
         description: "Não foi possível carregar o histórico.",
@@ -80,10 +94,13 @@ export default function VersionHistory() {
 
   const filteredHistory = history.filter((entry) => {
     const matchesSearch =
-      entry.solicitacao.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      entry.usuario.nome_completo.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter =
-      filterAction === "all" || entry.acao === filterAction;
+      entry.solicitacao.titulo
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      entry.usuario.nome_completo
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+    const matchesFilter = filterAction === "all" || entry.acao === filterAction;
     return matchesSearch && matchesFilter;
   });
 

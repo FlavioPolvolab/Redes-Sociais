@@ -87,33 +87,25 @@ export default function UserManagement() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      // 1. Criar usuário no Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: novoUsuario.email,
-        password: novoUsuario.senha,
-        options: {
-          data: {
-            full_name: novoUsuario.nome,
-            perfil: novoUsuario.perfil,
-          },
-        },
+      // Usar a função do banco para criar usuário admin
+      const { data, error } = await supabase.rpc("criar_usuario_admin", {
+        email_admin: novoUsuario.email,
+        senha_admin: novoUsuario.senha,
       });
-      if (authError) throw authError;
 
-      // 2. Inserir dados na tabela de usuários
-      if (authData.user) {
-        const { error: dbError } = await supabase
-          .from('usuarios')
-          .insert([
-            {
-              id: authData.user.id,
-              email: novoUsuario.email,
-              nome: novoUsuario.nome,
-              perfil: novoUsuario.perfil,
-            }
-          ]);
-        if (dbError) throw dbError;
-      }
+      if (error) throw error;
+
+      // Inserir dados na tabela de usuários
+      const { error: dbError } = await supabase.from("usuarios").insert([
+        {
+          id: data,
+          email: novoUsuario.email,
+          nome_completo: novoUsuario.nome,
+          perfil: novoUsuario.perfil,
+        },
+      ]);
+
+      if (dbError) throw dbError;
 
       toast({
         title: "Sucesso!",
@@ -127,7 +119,7 @@ export default function UserManagement() {
       });
       fetchUsuarios();
     } catch (error: any) {
-      console.error('Erro ao criar usuário:', error);
+      console.error("Erro ao criar usuário:", error);
       toast({
         title: "Erro",
         description: error.message || "Não foi possível criar o usuário.",
@@ -223,7 +215,9 @@ export default function UserManagement() {
                       <Label htmlFor="perfil">Perfil</Label>
                       <Select
                         value={novoUsuario.perfil}
-                        onValueChange={(value: "solicitante" | "aprovador" | "admin") =>
+                        onValueChange={(
+                          value: "solicitante" | "aprovador" | "admin",
+                        ) =>
                           setNovoUsuario((prev) => ({
                             ...prev,
                             perfil: value,
@@ -234,14 +228,20 @@ export default function UserManagement() {
                           <SelectValue placeholder="Selecione um perfil" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="solicitante">Solicitante</SelectItem>
+                          <SelectItem value="solicitante">
+                            Solicitante
+                          </SelectItem>
                           <SelectItem value="aprovador">Aprovador</SelectItem>
                           <SelectItem value="admin">Administrador</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
-                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={isSubmitting}
+                    >
                       {isSubmitting ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -275,13 +275,17 @@ export default function UserManagement() {
                     <TableBody>
                       {usuarios.map((usuario) => (
                         <TableRow key={usuario.id}>
-                          <TableCell>{usuario.nome}</TableCell>
+                          <TableCell>
+                            {usuario.nome_completo || usuario.nome}
+                          </TableCell>
                           <TableCell>{usuario.email}</TableCell>
                           <TableCell className="capitalize">
                             {usuario.perfil}
                           </TableCell>
                           <TableCell>
-                            {new Date(usuario.criado_em).toLocaleDateString("pt-BR")}
+                            {new Date(usuario.criado_em).toLocaleDateString(
+                              "pt-BR",
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -295,4 +299,4 @@ export default function UserManagement() {
       </div>
     </div>
   );
-} 
+}

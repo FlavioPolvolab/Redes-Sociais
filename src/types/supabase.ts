@@ -48,6 +48,13 @@ export type Database = {
             referencedRelation: "solicitacoes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "arquivos_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "vw_solicitacoes"
+            referencedColumns: ["id"]
+          },
         ]
       }
       comentarios: {
@@ -81,6 +88,13 @@ export type Database = {
             columns: ["solicitacao_id"]
             isOneToOne: false
             referencedRelation: "solicitacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comentarios_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "vw_solicitacoes"
             referencedColumns: ["id"]
           },
           {
@@ -123,6 +137,13 @@ export type Database = {
             columns: ["solicitacao_id"]
             isOneToOne: false
             referencedRelation: "solicitacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historico_versoes_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "vw_solicitacoes"
             referencedColumns: ["id"]
           },
           {
@@ -234,6 +255,7 @@ export type Database = {
         Row: {
           ativo: boolean | null
           atualizado_em: string | null
+          avatar_url: string | null
           criado_em: string | null
           email: string
           id: string
@@ -243,6 +265,7 @@ export type Database = {
         Insert: {
           ativo?: boolean | null
           atualizado_em?: string | null
+          avatar_url?: string | null
           criado_em?: string | null
           email: string
           id: string
@@ -252,6 +275,7 @@ export type Database = {
         Update: {
           ativo?: boolean | null
           atualizado_em?: string | null
+          avatar_url?: string | null
           criado_em?: string | null
           email?: string
           id?: string
@@ -262,12 +286,96 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      vw_historico_solicitacoes: {
+        Row: {
+          acao: string | null
+          acao_descricao: string | null
+          comentario: string | null
+          criado_em: string | null
+          detalhes: Json | null
+          id: string | null
+          solicitacao_id: string | null
+          solicitacao_status:
+            | Database["public"]["Enums"]["status_solicitacao"]
+            | null
+          solicitacao_titulo: string | null
+          usuario_avatar: string | null
+          usuario_email: string | null
+          usuario_id: string | null
+          usuario_nome: string | null
+          usuario_perfil: Database["public"]["Enums"]["perfil_usuario"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historico_versoes_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historico_versoes_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "vw_solicitacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historico_versoes_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_solicitacoes: {
+        Row: {
+          aprovado_em: string | null
+          aprovador_avatar: string | null
+          aprovador_email: string | null
+          aprovador_id: string | null
+          aprovador_nome: string | null
+          arquivos: Json | null
+          atualizado_em: string | null
+          criado_em: string | null
+          data_limite: string | null
+          descricao: string | null
+          id: string | null
+          rejeitado_em: string | null
+          solicitante_avatar: string | null
+          solicitante_email: string | null
+          solicitante_id: string | null
+          solicitante_nome: string | null
+          status: Database["public"]["Enums"]["status_solicitacao"] | null
+          titulo: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacoes_aprovador_id_fkey"
+            columns: ["aprovador_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_solicitante_id_fkey"
+            columns: ["solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       criar_usuario_admin: {
         Args: { email_admin: string; senha_admin: string }
         Returns: string
+      }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
     }
     Enums: {
@@ -404,7 +512,3 @@ export const Constants = {
     },
   },
 } as const
-
-export type PerfilUsuario = Database["public"]["Enums"]["perfil_usuario"];
-
-export type Usuario = Database["public"]["Tables"]["usuarios"]["Row"];
