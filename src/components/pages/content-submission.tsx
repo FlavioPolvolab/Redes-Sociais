@@ -25,14 +25,17 @@ export default function ContentSubmission() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const selectedFiles = event.target.files;
     if (!selectedFiles) return;
 
     const newFiles: FileUpload[] = [];
-    
+
     for (const file of Array.from(selectedFiles)) {
-      if (file.size > 10 * 1024 * 1024) { // 10MB
+      if (file.size > 10 * 1024 * 1024) {
+        // 10MB
         toast({
           title: "Erro",
           description: `O arquivo ${file.name} excede o limite de 10MB`,
@@ -41,7 +44,13 @@ export default function ContentSubmission() {
         continue;
       }
 
-      const allowedTypes = ['image/png', 'image/jpeg', 'application/pdf', 'video/mp4', 'video/webm'];
+      const allowedTypes = [
+        "image/png",
+        "image/jpeg",
+        "application/pdf",
+        "video/mp4",
+        "video/webm",
+      ];
       if (!allowedTypes.includes(file.type)) {
         toast({
           title: "Erro",
@@ -56,7 +65,7 @@ export default function ContentSubmission() {
         name: file.name,
         size: file.size,
         type: file.type,
-        file: file
+        file: file,
       });
     }
 
@@ -73,7 +82,10 @@ export default function ContentSubmission() {
 
     try {
       // 1. Verificar autenticação
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError || !user) {
         throw new Error("Usuário não autenticado");
       }
@@ -86,8 +98,8 @@ export default function ContentSubmission() {
             titulo: title,
             descricao: description,
             status: "pendente",
-            solicitante_id: user.id
-          }
+            solicitante_id: user.id,
+          },
         ])
         .select()
         .single();
@@ -105,12 +117,13 @@ export default function ContentSubmission() {
             solicitacao_id: solicitacao.id,
             usuario_id: user.id,
             acao: "criado",
+            comentario: "Solicitação criada",
             detalhes: {
               titulo: title,
               descricao: description,
-              status: "pendente"
-            }
-          }
+              status: "pendente",
+            },
+          },
         ]);
 
       if (historicoError) {
@@ -120,14 +133,14 @@ export default function ContentSubmission() {
       // 4. Upload e registro dos arquivos
       for (const file of files) {
         try {
-          const fileExt = file.name.split('.').pop();
+          const fileExt = file.name.split(".").pop();
           const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
           // Upload do arquivo
           const { error: uploadError } = await supabase.storage
             .from("solicitacoes")
             .upload(fileName, file.file, {
-              contentType: file.type
+              contentType: file.type,
             });
 
           if (uploadError) {
@@ -136,9 +149,9 @@ export default function ContentSubmission() {
           }
 
           // Obter URL pública
-          const { data: { publicUrl } } = supabase.storage
-            .from("solicitacoes")
-            .getPublicUrl(fileName);
+          const {
+            data: { publicUrl },
+          } = supabase.storage.from("solicitacoes").getPublicUrl(fileName);
 
           // Registrar arquivo no banco
           const { error: arquivoError } = await supabase
@@ -148,10 +161,14 @@ export default function ContentSubmission() {
                 solicitacao_id: solicitacao.id,
                 nome_arquivo: file.name,
                 caminho_storage: fileName,
-                tipo_conteudo: file.type.includes('image') ? 'imagem' : file.type.includes('video') ? 'video' : 'pdf',
+                tipo_conteudo: file.type.includes("image")
+                  ? "imagem"
+                  : file.type.includes("video")
+                    ? "video"
+                    : "pdf",
                 tamanho_bytes: file.size,
-                url_publica: publicUrl
-              }
+                url_publica: publicUrl,
+              },
             ]);
 
           if (arquivoError) {
@@ -175,7 +192,10 @@ export default function ContentSubmission() {
       console.error("Erro ao enviar solicitação:", error);
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "Não foi possível enviar sua solicitação. Por favor, tente novamente.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Não foi possível enviar sua solicitação. Por favor, tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -196,7 +216,7 @@ export default function ContentSubmission() {
       <TopNavigation />
       <div className="flex h-[calc(100vh-64px)] mt-16">
         <Sidebar />
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-4xl mx-auto">
             <div className="mb-8">
               <h1 className="text-3xl font-semibold text-gray-900 mb-2">

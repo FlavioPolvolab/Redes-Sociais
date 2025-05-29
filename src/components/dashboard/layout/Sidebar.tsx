@@ -71,7 +71,7 @@ export default function Sidebar({ activeItem }: SidebarProps) {
   ];
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 flex-shrink-0">
+    <aside className="w-64 bg-white border-r border-gray-200 flex-shrink-0 h-full overflow-y-auto">
       <div className="h-full flex flex-col">
         <nav className="flex-1 p-4">
           <ul className="space-y-1">

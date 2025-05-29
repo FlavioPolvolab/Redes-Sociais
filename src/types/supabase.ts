@@ -106,9 +106,57 @@ export type Database = {
           },
         ]
       }
+      configuracoes_usuario: {
+        Row: {
+          atualizado_em: string | null
+          criado_em: string | null
+          id: string
+          notificacoes_email: boolean | null
+          notificacoes_push: boolean | null
+          notificacoes_sistema: boolean | null
+          privacidade_mostrar_email: boolean | null
+          privacidade_mostrar_telefone: boolean | null
+          privacidade_perfil_publico: boolean | null
+          usuario_id: string
+        }
+        Insert: {
+          atualizado_em?: string | null
+          criado_em?: string | null
+          id?: string
+          notificacoes_email?: boolean | null
+          notificacoes_push?: boolean | null
+          notificacoes_sistema?: boolean | null
+          privacidade_mostrar_email?: boolean | null
+          privacidade_mostrar_telefone?: boolean | null
+          privacidade_perfil_publico?: boolean | null
+          usuario_id: string
+        }
+        Update: {
+          atualizado_em?: string | null
+          criado_em?: string | null
+          id?: string
+          notificacoes_email?: boolean | null
+          notificacoes_push?: boolean | null
+          notificacoes_sistema?: boolean | null
+          privacidade_mostrar_email?: boolean | null
+          privacidade_mostrar_telefone?: boolean | null
+          privacidade_perfil_publico?: boolean | null
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "configuracoes_usuario_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       historico_versoes: {
         Row: {
           acao: string
+          comentario: string | null
           criado_em: string | null
           detalhes: Json | null
           id: string
@@ -117,6 +165,7 @@ export type Database = {
         }
         Insert: {
           acao: string
+          comentario?: string | null
           criado_em?: string | null
           detalhes?: Json | null
           id?: string
@@ -125,6 +174,7 @@ export type Database = {
         }
         Update: {
           acao?: string
+          comentario?: string | null
           criado_em?: string | null
           detalhes?: Json | null
           id?: string
@@ -256,31 +306,40 @@ export type Database = {
           ativo: boolean | null
           atualizado_em: string | null
           avatar_url: string | null
+          cargo: string | null
           criado_em: string | null
+          departamento: string | null
           email: string
           id: string
           nome_completo: string
           perfil: Database["public"]["Enums"]["perfil_usuario"]
+          telefone: string | null
         }
         Insert: {
           ativo?: boolean | null
           atualizado_em?: string | null
           avatar_url?: string | null
+          cargo?: string | null
           criado_em?: string | null
+          departamento?: string | null
           email: string
           id: string
           nome_completo: string
           perfil?: Database["public"]["Enums"]["perfil_usuario"]
+          telefone?: string | null
         }
         Update: {
           ativo?: boolean | null
           atualizado_em?: string | null
           avatar_url?: string | null
+          cargo?: string | null
           criado_em?: string | null
+          departamento?: string | null
           email?: string
           id?: string
           nome_completo?: string
           perfil?: Database["public"]["Enums"]["perfil_usuario"]
+          telefone?: string | null
         }
         Relationships: []
       }
@@ -512,26 +571,3 @@ export const Constants = {
     },
   },
 } as const
-
-export type PerfilUsuario = Database["public"]["Enums"]["perfil_usuario"];
-
-export interface Usuario {
-  id: string;
-  email: string;
-  nome_completo: string;
-  perfil: PerfilUsuario;
-  ativo?: boolean;
-  avatar_url?: string;
-  criado_em?: string;
-  atualizado_em?: string;
-}
-
-export interface AuthUser {
-  id: string;
-  email: string;
-  user_metadata: {
-    full_name: string;
-    perfil: PerfilUsuario;
-    avatar_url?: string;
-  };
-}

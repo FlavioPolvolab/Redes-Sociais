@@ -71,6 +71,7 @@ export default function ContentDetails() {
   const [historico, setHistorico] = useState<Historico[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [newFiles, setNewFiles] = useState<File[]>([]);
@@ -143,10 +144,12 @@ export default function ContentDetails() {
 
   const handleFileClick = (file: any) => {
     setSelectedFile(file);
+    setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
     setSelectedFile(null);
+    setIsModalOpen(false);
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -246,6 +249,7 @@ export default function ContentDetails() {
             solicitacao_id: id,
             usuario_id: user.id,
             acao: "comentario_adicionado",
+            comentario: newComment.trim() || null,
             detalhes,
           },
         ]);
@@ -339,7 +343,7 @@ export default function ContentDetails() {
       <TopNavigation />
       <div className="flex h-[calc(100vh-64px)] mt-16">
         <Sidebar />
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-4xl mx-auto">
             <div className="mb-8">
               <div className="flex items-center justify-between">
@@ -483,7 +487,7 @@ export default function ContentDetails() {
               </Card>
 
               {/* Modal para visualização de imagem ou vídeo */}
-              <Dialog open={!!selectedFile} onOpenChange={handleCloseModal}>
+              <Dialog open={isModalOpen} onOpenChange={handleCloseModal}>
                 <DialogContent className="max-w-2xl">
                   <DialogHeader>
                     <DialogTitle>{selectedFile?.nome}</DialogTitle>
@@ -655,6 +659,8 @@ export default function ContentDetails() {
                                   solicitacao_id: solicitacao.id,
                                   usuario_id: user.id,
                                   acao: "reenviado_aprovacao",
+                                  comentario:
+                                    "Solicitação reenviada para aprovação após revisão",
                                   detalhes: {
                                     status_anterior: "revisao_solicitada",
                                     status_novo: "pendente",

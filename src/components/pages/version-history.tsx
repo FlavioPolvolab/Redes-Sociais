@@ -75,8 +75,8 @@ export default function VersionHistory() {
           perfil: item.usuario_perfil,
         },
         criado_em: item.criado_em,
-        comentario: item.comentario,
-        detalhes: item.detalhes,
+        comentario: item.comentario || null,
+        detalhes: item.detalhes || null,
       }));
 
       setHistory(transformedData);
@@ -159,7 +159,7 @@ export default function VersionHistory() {
       <TopNavigation />
       <div className="flex h-[calc(100vh-64px)] mt-16">
         <Sidebar />
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-6xl mx-auto">
             <div className="mb-8">
               <h1 className="text-3xl font-semibold text-gray-900 mb-2">

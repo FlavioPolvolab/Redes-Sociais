@@ -43,7 +43,9 @@ export default function Profile() {
 
   const fetchProfile = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
       const { data, error } = await supabase
@@ -90,7 +92,9 @@ export default function Profile() {
     setIsSaving(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
       let avatarUrl = profile?.avatar_url;
@@ -104,9 +108,9 @@ export default function Profile() {
 
         if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage
-          .from("avatars")
-          .getPublicUrl(fileName);
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("avatars").getPublicUrl(fileName);
 
         avatarUrl = publicUrl;
       }
@@ -160,7 +164,7 @@ export default function Profile() {
       <TopNavigation />
       <div className="flex h-[calc(100vh-64px)] mt-16">
         <Sidebar />
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-4xl mx-auto">
             <div className="mb-8">
               <h1 className="text-3xl font-semibold text-gray-900 mb-2">
@@ -212,8 +216,8 @@ export default function Profile() {
                       {profile?.perfil === "aprovador"
                         ? "Aprovador"
                         : profile?.perfil === "admin"
-                        ? "Administrador"
-                        : "Solicitante"}
+                          ? "Administrador"
+                          : "Solicitante"}
                     </Badge>
                   </div>
 
