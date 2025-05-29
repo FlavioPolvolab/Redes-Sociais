@@ -512,3 +512,26 @@ export const Constants = {
     },
   },
 } as const
+
+export type PerfilUsuario = Database["public"]["Enums"]["perfil_usuario"];
+
+export interface Usuario {
+  id: string;
+  email: string;
+  nome_completo: string;
+  perfil: PerfilUsuario;
+  ativo?: boolean;
+  avatar_url?: string;
+  criado_em?: string;
+  atualizado_em?: string;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  user_metadata: {
+    full_name: string;
+    perfil: PerfilUsuario;
+    avatar_url?: string;
+  };
+}

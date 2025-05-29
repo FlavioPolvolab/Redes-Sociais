@@ -14,13 +14,15 @@ import ContentSubmission from "./components/pages/content-submission";
 import ContentApproval from "./components/pages/content-approval";
 import VersionHistory from "./components/pages/version-history";
 import { AuthProvider, useAuth } from "../supabase/auth";
+import type { AuthContextType } from "../types/auth";
 import { Toaster } from "./components/ui/toaster";
 import { LoadingScreen, LoadingSpinner } from "./components/ui/loading-spinner";
 import ContentDetails from "./components/pages/content-details";
 import UserManagement from "./components/pages/user-management";
 
 function PrivateRoute({ children, requiredPerfil }: { children: React.ReactNode; requiredPerfil?: string[] }) {
-  const { usuario, loading } = useAuth();
+  const auth = useAuth();
+  const { user, loading } = auth;
 
   if (loading) {
     return (
@@ -33,11 +35,11 @@ function PrivateRoute({ children, requiredPerfil }: { children: React.ReactNode;
     );
   }
 
-  if (!usuario) {
+  if (!user) {
     return <Navigate to="/login" />;
   }
 
-  if (requiredPerfil && !requiredPerfil.includes(usuario.perfil)) {
+  if (requiredPerfil && !requiredPerfil.includes(user.perfil)) {
     return <Navigate to="/dashboard" />;
   }
 
@@ -45,7 +47,8 @@ function PrivateRoute({ children, requiredPerfil }: { children: React.ReactNode;
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const auth = useAuth();
+  const { user, loading } = auth;
 
   if (loading) {
     return <LoadingScreen text="Carregando..." />;

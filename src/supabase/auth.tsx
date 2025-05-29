@@ -1,19 +1,20 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { useNavigate } from "react-router-dom";
-import { Usuario } from "../src/types/supabase";
+import { Usuario } from "../types/supabase";
+import { AuthContextType } from "./types";
 
-interface AuthContextType {
-  usuario: Usuario | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
-}
+const defaultContext: AuthContextType = {
+  user: null,
+  loading: true,
+  signIn: async () => {},
+  signOut: async () => {},
+};
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType>(defaultContext);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const [user, setUser] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -29,12 +30,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (error) {
             console.error("Erro ao buscar dados do usuário:", error);
-            setUsuario(null);
+            setUser(null);
           } else {
-            setUsuario(userData);
+            setUser(userData as Usuario);
           }
         } else {
-          setUsuario(null);
+          setUser(null);
         }
         setLoading(false);
       }
@@ -60,17 +61,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     navigate("/login");
   };
 
+  const value: AuthContextType = {
+    user,
+    loading,
+    signIn,
+    signOut,
+  };
+
   return (
-    <AuthContext.Provider value={{ usuario, loading, signIn, signOut }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useAuth deve ser usado dentro de um AuthProvider");
   }
   return context;
 }
+
+export type { AuthContextType }; 

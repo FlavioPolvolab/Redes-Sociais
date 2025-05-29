@@ -23,22 +23,25 @@ import { Loader2, UserPlus } from "lucide-react";
 import TopNavigation from "../dashboard/layout/TopNavigation";
 import Sidebar from "../dashboard/layout/Sidebar";
 import { supabase } from "../../../supabase/supabase";
-import { useAuth } from "../../../supabase/auth";
+import { useAuth, AuthContextType } from "../../../supabase/auth";
 import { useNavigate } from "react-router-dom";
+import { PerfilUsuario } from "@/types/supabase";
 
 interface NovoUsuario {
   email: string;
   senha: string;
   nome: string;
-  perfil: "solicitante" | "aprovador" | "admin";
+  perfil: PerfilUsuario;
 }
 
 interface Usuario {
   id: string;
   email: string;
-  nome: string;
-  perfil: string;
-  criado_em: string;
+  nome_completo: string;
+  perfil: PerfilUsuario;
+  criado_em?: string;
+  avatar_url?: string;
+  ativo?: boolean;
 }
 
 export default function UserManagement() {
@@ -51,17 +54,18 @@ export default function UserManagement() {
   });
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { usuario } = useAuth();
+  const auth = useAuth();
+  const { user } = auth;
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (usuario?.perfil !== "admin") {
+    if (user?.perfil !== "admin") {
       navigate("/dashboard");
       return;
     }
     fetchUsuarios();
-  }, [usuario]);
+  }, [user]);
 
   const fetchUsuarios = async () => {
     try {
@@ -276,14 +280,14 @@ export default function UserManagement() {
                       {usuarios.map((usuario) => (
                         <TableRow key={usuario.id}>
                           <TableCell>
-                            {usuario.nome_completo || usuario.nome}
+                            {usuario.nome_completo}
                           </TableCell>
                           <TableCell>{usuario.email}</TableCell>
                           <TableCell className="capitalize">
                             {usuario.perfil}
                           </TableCell>
                           <TableCell>
-                            {new Date(usuario.criado_em).toLocaleDateString(
+                            {new Date(usuario.criado_em || "").toLocaleDateString(
                               "pt-BR",
                             )}
                           </TableCell>
