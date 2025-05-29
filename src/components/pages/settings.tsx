@@ -1,48 +1,109 @@
-import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
-import { Bell, Mail, Shield, Palette, Globe } from "lucide-react";
+import { Bell, Shield, Loader2 } from "lucide-react";
 import TopNavigation from "../dashboard/layout/TopNavigation";
 import Sidebar from "../dashboard/layout/Sidebar";
+import { supabase } from "../../../supabase/supabase";
+
+interface UserSettings {
+  id: string;
+  notificacoes_email: boolean;
+  notificacoes_push: boolean;
+  notificacoes_sistema: boolean;
+  privacidade_perfil_publico: boolean;
+  privacidade_mostrar_email: boolean;
+  privacidade_mostrar_telefone: boolean;
+}
 
 export default function Settings() {
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [pushNotifications, setPushNotifications] = useState(false);
-  const [weeklyDigest, setWeeklyDigest] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
-  const [language, setLanguage] = useState("pt-BR");
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [settings, setSettings] = useState<UserSettings | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
-  const handleSaveSettings = async () => {
-    setIsUpdating(true);
+  useEffect(() => {
+    fetchSettings();
+  }, []);
 
+  const fetchSettings = async () => {
     try {
-      // Aqui seria implementada a lógica de salvamento das configurações
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
 
-      toast({
-        title: "Configurações salvas!",
-        description: "Suas preferências foram atualizadas com sucesso.",
-      });
+      const { data, error } = await supabase
+        .from("configuracoes_usuario")
+        .select("*")
+        .eq("usuario_id", user.id)
+        .single();
+
+      if (error) throw error;
+
+      setSettings(data);
     } catch (error) {
       toast({
-        title: "Erro ao salvar configurações",
-        description: "Tente novamente mais tarde.",
+        title: "Erro",
+        description: "Não foi possível carregar as configurações.",
         variant: "destructive",
       });
     } finally {
-      setIsUpdating(false);
+      setIsLoading(false);
     }
   };
+
+  const handleToggle = async (key: keyof UserSettings) => {
+    if (!settings) return;
+
+    setIsSaving(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      const newValue = !settings[key];
+      const { error } = await supabase
+        .from("configuracoes_usuario")
+        .update({ [key]: newValue })
+        .eq("usuario_id", user.id);
+
+      if (error) throw error;
+
+      setSettings((prev) => prev ? { ...prev, [key]: newValue } : null);
+
+      toast({
+        title: "Sucesso!",
+        description: "Configuração atualizada com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar a configuração.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#f5f5f7] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Carregando configurações...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f5f5f7]">
       <TopNavigation />
       <div className="flex h-[calc(100vh-64px)] mt-16">
-        <Sidebar activeItem="Configurações" />
+        <Sidebar />
         <main className="flex-1 overflow-auto p-6">
           <div className="max-w-4xl mx-auto">
             <div className="mb-8">
@@ -50,7 +111,7 @@ export default function Settings() {
                 Configurações
               </h1>
               <p className="text-gray-600">
-                Personalize sua experiência no sistema
+                Gerencie suas preferências e configurações de privacidade
               </p>
             </div>
 
@@ -58,131 +119,52 @@ export default function Settings() {
               {/* Notificações */}
               <Card className="bg-white">
                 <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Bell className="h-5 w-5" />
-                    <span>Notificações</span>
+                  <CardTitle className="text-xl font-medium text-gray-900 flex items-center">
+                    <Bell className="h-5 w-5 mr-2" />
+                    Notificações
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label className="text-base font-medium">
-                        Notificações por Email
-                      </Label>
+                      <Label>Notificações por E-mail</Label>
                       <p className="text-sm text-gray-500">
-                        Receba emails quando houver atualizações em suas
-                        submissões
+                        Receba atualizações por e-mail sobre suas solicitações
                       </p>
                     </div>
                     <Switch
-                      checked={emailNotifications}
-                      onCheckedChange={setEmailNotifications}
+                      checked={settings?.notificacoes_email}
+                      onCheckedChange={() => handleToggle("notificacoes_email")}
+                      disabled={isSaving}
                     />
                   </div>
 
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label className="text-base font-medium">
-                        Notificações Push
-                      </Label>
+                      <Label>Notificações Push</Label>
                       <p className="text-sm text-gray-500">
-                        Receba notificações instantâneas no navegador
+                        Receba notificações em tempo real no navegador
                       </p>
                     </div>
                     <Switch
-                      checked={pushNotifications}
-                      onCheckedChange={setPushNotifications}
+                      checked={settings?.notificacoes_push}
+                      onCheckedChange={() => handleToggle("notificacoes_push")}
+                      disabled={isSaving}
                     />
                   </div>
 
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label className="text-base font-medium">
-                        Resumo Semanal
-                      </Label>
+                      <Label>Notificações do Sistema</Label>
                       <p className="text-sm text-gray-500">
-                        Receba um resumo semanal de suas atividades
+                        Receba notificações sobre atualizações do sistema
                       </p>
                     </div>
                     <Switch
-                      checked={weeklyDigest}
-                      onCheckedChange={setWeeklyDigest}
+                      checked={settings?.notificacoes_sistema}
+                      onCheckedChange={() => handleToggle("notificacoes_sistema")}
+                      disabled={isSaving}
                     />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Aparência */}
-              <Card className="bg-white">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Palette className="h-5 w-5" />
-                    <span>Aparência</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label className="text-base font-medium">
-                        Modo Escuro
-                      </Label>
-                      <p className="text-sm text-gray-500">
-                        Ative o tema escuro para reduzir o cansaço visual
-                      </p>
-                    </div>
-                    <Switch checked={darkMode} onCheckedChange={setDarkMode} />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Idioma */}
-              <Card className="bg-white">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Globe className="h-5 w-5" />
-                    <span>Idioma e Região</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-2">
-                    <Label className="text-base font-medium">
-                      Idioma da Interface
-                    </Label>
-                    <select
-                      value={language}
-                      onChange={(e) => setLanguage(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="pt-BR">Português (Brasil)</option>
-                      <option value="en-US">English (United States)</option>
-                      <option value="es-ES">Español (España)</option>
-                    </select>
-                    <p className="text-sm text-gray-500">
-                      Escolha o idioma para a interface do sistema
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Segurança */}
-              <Card className="bg-white">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Shield className="h-5 w-5" />
-                    <span>Segurança</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-4">
-                    <Button variant="outline" className="w-full justify-start">
-                      Alterar Senha
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start">
-                      Configurar Autenticação de Dois Fatores
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start">
-                      Ver Sessões Ativas
-                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -190,40 +172,61 @@ export default function Settings() {
               {/* Privacidade */}
               <Card className="bg-white">
                 <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Mail className="h-5 w-5" />
-                    <span>Privacidade</span>
+                  <CardTitle className="text-xl font-medium text-gray-900 flex items-center">
+                    <Shield className="h-5 w-5 mr-2" />
+                    Privacidade
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="space-y-4">
-                    <Button variant="outline" className="w-full justify-start">
-                      Baixar Meus Dados
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start">
-                      Política de Privacidade
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      className="w-full justify-start"
-                    >
-                      Excluir Conta
-                    </Button>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Perfil Público</Label>
+                      <p className="text-sm text-gray-500">
+                        Permite que outros usuários vejam seu perfil
+                      </p>
+                    </div>
+                    <Switch
+                      checked={settings?.privacidade_perfil_publico}
+                      onCheckedChange={() =>
+                        handleToggle("privacidade_perfil_publico")
+                      }
+                      disabled={isSaving}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Mostrar E-mail</Label>
+                      <p className="text-sm text-gray-500">
+                        Exibe seu e-mail para outros usuários
+                      </p>
+                    </div>
+                    <Switch
+                      checked={settings?.privacidade_mostrar_email}
+                      onCheckedChange={() =>
+                        handleToggle("privacidade_mostrar_email")
+                      }
+                      disabled={isSaving}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Mostrar Telefone</Label>
+                      <p className="text-sm text-gray-500">
+                        Exibe seu telefone para outros usuários
+                      </p>
+                    </div>
+                    <Switch
+                      checked={settings?.privacidade_mostrar_telefone}
+                      onCheckedChange={() =>
+                        handleToggle("privacidade_mostrar_telefone")
+                      }
+                      disabled={isSaving}
+                    />
                   </div>
                 </CardContent>
               </Card>
-
-              {/* Botão de Salvar */}
-              <div className="flex justify-end space-x-4">
-                <Button variant="outline">Cancelar</Button>
-                <Button
-                  onClick={handleSaveSettings}
-                  disabled={isUpdating}
-                  className="bg-blue-500 hover:bg-blue-600"
-                >
-                  {isUpdating ? "Salvando..." : "Salvar Configurações"}
-                </Button>
-              </div>
             </div>
           </div>
         </main>

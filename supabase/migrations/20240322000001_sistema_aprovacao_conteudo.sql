@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     nome_completo TEXT NOT NULL,
     perfil perfil_usuario NOT NULL DEFAULT 'solicitante',
     ativo BOOLEAN DEFAULT true,
+    avatar_url TEXT,
     criado_em TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     atualizado_em TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -174,21 +175,28 @@ CREATE POLICY "Solicitantes podem ver próprias solicitações"
     ON solicitacoes FOR SELECT
     USING (solicitante_id = auth.uid());
 
-DROP POLICY IF EXISTS "Aprovadores podem ver solicitações atribuídas" ON solicitacoes;
-CREATE POLICY "Aprovadores podem ver solicitações atribuídas"
+DROP POLICY IF EXISTS "Aprovadores podem ver solicitações" ON solicitacoes;
+CREATE POLICY "Aprovadores podem ver solicitações"
     ON solicitacoes FOR SELECT
-    USING (aprovador_id = auth.uid() OR EXISTS (
+    USING (EXISTS (
         SELECT 1 FROM usuarios 
         WHERE id = auth.uid() AND perfil IN ('aprovador', 'admin')
     ));
 
 DROP POLICY IF EXISTS "Solicitantes podem criar solicitações" ON solicitacoes;
 CREATE POLICY "Solicitantes podem criar solicitações"
-    ON solicitacoes FOR INSERT
-    WITH CHECK (solicitante_id = auth.uid());
+    ON solicitacoes FOR INSERT TO authenticated
+    WITH CHECK (
+        solicitante_id = auth.uid() AND 
+        EXISTS (
+            SELECT 1 FROM usuarios 
+            WHERE id = auth.uid() 
+            AND perfil IN ('solicitante', 'admin')
+        )
+    );
 
-DROP POLICY IF EXISTS "Solicitantes podem atualizar próprias solicitações" ON solicitacoes;
-CREATE POLICY "Solicitantes podem atualizar próprias solicitações"
+DROP POLICY IF EXISTS "Solicitantes podem atualizar próprias solicitações pendentes" ON solicitacoes;
+CREATE POLICY "Solicitantes podem atualizar próprias solicitações pendentes"
     ON solicitacoes FOR UPDATE
     USING (solicitante_id = auth.uid() AND status = 'pendente');
 
@@ -244,6 +252,11 @@ CREATE POLICY "Usuários podem criar comentários"
     ));
 
 -- Políticas para histórico
+DROP POLICY IF EXISTS "Sistema pode criar histórico" ON historico_versoes;
+CREATE POLICY "Sistema pode criar histórico"
+    ON historico_versoes FOR INSERT
+    WITH CHECK (true);
+
 DROP POLICY IF EXISTS "Usuários podem ver histórico de solicitações acessíveis" ON historico_versoes;
 CREATE POLICY "Usuários podem ver histórico de solicitações acessíveis"
     ON historico_versoes FOR SELECT
@@ -255,10 +268,78 @@ CREATE POLICY "Usuários podem ver histórico de solicitações acessíveis"
              OR EXISTS (SELECT 1 FROM usuarios WHERE id = auth.uid() AND perfil = 'admin'))
     ));
 
+-- Criar view para solicitações com informações completas
+DROP VIEW IF EXISTS vw_solicitacoes;
+CREATE VIEW vw_solicitacoes AS
+SELECT 
+    s.*,
+    sol.nome_completo as solicitante_nome,
+    sol.email as solicitante_email,
+    COALESCE(sol.avatar_url, '') as solicitante_avatar,
+    apr.nome_completo as aprovador_nome,
+    apr.email as aprovador_email,
+    COALESCE(apr.avatar_url, '') as aprovador_avatar,
+    COALESCE(
+        (SELECT json_agg(
+            json_build_object(
+                'id', a.id,
+                'nome', a.nome_arquivo,
+                'tipo', a.tipo_conteudo,
+                'tamanho', a.tamanho_bytes,
+                'url', a.url_publica
+            )
+        )
+        FROM arquivos a
+        WHERE a.solicitacao_id = s.id),
+        '[]'::json
+    ) as arquivos
+FROM solicitacoes s
+LEFT JOIN usuarios sol ON s.solicitante_id = sol.id
+LEFT JOIN usuarios apr ON s.aprovador_id = apr.id;
+
+-- Criar view para histórico de solicitações
+DROP VIEW IF EXISTS vw_historico_solicitacoes;
+CREATE VIEW vw_historico_solicitacoes AS
+SELECT 
+    h.*,
+    s.titulo as solicitacao_titulo,
+    s.status as solicitacao_status,
+    u.nome_completo as usuario_nome,
+    u.email as usuario_email,
+    COALESCE(u.avatar_url, '') as usuario_avatar,
+    u.perfil as usuario_perfil,
+    CASE 
+        WHEN h.acao = 'comentario_adicionado' THEN 
+            COALESCE((h.detalhes->>'comentario')::text, '')
+        WHEN h.acao IN ('rejeitado', 'revisao_solicitada') THEN 
+            COALESCE((h.detalhes->>'motivo')::text, '')
+        ELSE NULL
+    END as comentario,
+    CASE
+        WHEN h.acao = 'criado' THEN 'Solicitação criada'
+        WHEN h.acao = 'aprovado' THEN 'Solicitação aprovada'
+        WHEN h.acao = 'rejeitado' THEN 'Solicitação rejeitada'
+        WHEN h.acao = 'revisao_solicitada' THEN 'Revisão solicitada'
+        WHEN h.acao = 'comentario_adicionado' THEN 'Comentário adicionado'
+        ELSE h.acao
+    END as acao_descricao
+FROM historico_versoes h
+JOIN solicitacoes s ON h.solicitacao_id = s.id
+JOIN usuarios u ON h.usuario_id = u.id;
+
 -- Criar buckets no Supabase Storage
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('solicitacoes', 'solicitacoes', false)
-ON CONFLICT (id) DO NOTHING;
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+    'solicitacoes',
+    'solicitacoes',
+    false,
+    10485760, -- 10MB em bytes
+    ARRAY['image/png', 'image/jpeg', 'application/pdf']::text[]
+)
+ON CONFLICT (id) DO UPDATE SET
+    public = false,
+    file_size_limit = 10485760,
+    allowed_mime_types = ARRAY['image/png', 'image/jpeg', 'application/pdf']::text[];
 
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('avatars', 'avatars', true)
@@ -267,23 +348,48 @@ ON CONFLICT (id) DO NOTHING;
 -- Políticas para storage
 DROP POLICY IF EXISTS "Usuários podem fazer upload de arquivos" ON storage.objects;
 CREATE POLICY "Usuários podem fazer upload de arquivos"
-    ON storage.objects FOR INSERT
-    WITH CHECK (bucket_id = 'solicitacoes' AND auth.role() = 'authenticated');
+    ON storage.objects FOR INSERT TO authenticated
+    WITH CHECK (
+        bucket_id = 'solicitacoes' 
+        AND (storage.foldername(name))[1] = auth.uid()::text
+    );
 
-DROP POLICY IF EXISTS "Usuários podem ver próprios arquivos" ON storage.objects;
-CREATE POLICY "Usuários podem ver próprios arquivos"
-    ON storage.objects FOR SELECT
-    USING (bucket_id = 'solicitacoes' AND auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Usuários podem ver arquivos de solicitações" ON storage.objects;
+CREATE POLICY "Usuários podem ver arquivos de solicitações"
+    ON storage.objects FOR SELECT TO authenticated
+    USING (
+        bucket_id = 'solicitacoes'
+        AND EXISTS (
+            SELECT 1 FROM solicitacoes s
+            JOIN arquivos a ON s.id = a.solicitacao_id
+            WHERE a.caminho_storage = name
+            AND (
+                s.solicitante_id = auth.uid()
+                OR s.aprovador_id = auth.uid()
+                OR EXISTS (
+                    SELECT 1 FROM usuarios
+                    WHERE id = auth.uid()
+                    AND perfil IN ('aprovador', 'admin')
+                )
+            )
+        )
+    );
 
 DROP POLICY IF EXISTS "Usuários podem atualizar próprios arquivos" ON storage.objects;
 CREATE POLICY "Usuários podem atualizar próprios arquivos"
-    ON storage.objects FOR UPDATE
-    USING (bucket_id = 'solicitacoes' AND auth.role() = 'authenticated');
+    ON storage.objects FOR UPDATE TO authenticated
+    USING (
+        bucket_id = 'solicitacoes'
+        AND (storage.foldername(name))[1] = auth.uid()::text
+    );
 
 DROP POLICY IF EXISTS "Usuários podem deletar próprios arquivos" ON storage.objects;
 CREATE POLICY "Usuários podem deletar próprios arquivos"
-    ON storage.objects FOR DELETE
-    USING (bucket_id = 'solicitacoes' AND auth.role() = 'authenticated');
+    ON storage.objects FOR DELETE TO authenticated
+    USING (
+        bucket_id = 'solicitacoes'
+        AND (storage.foldername(name))[1] = auth.uid()::text
+    );
 
 -- Políticas para avatars (público)
 DROP POLICY IF EXISTS "Avatars são públicos" ON storage.objects;

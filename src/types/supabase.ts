@@ -404,3 +404,7 @@ export const Constants = {
     },
   },
 } as const
+
+export type PerfilUsuario = Database["public"]["Enums"]["perfil_usuario"];
+
+export type Usuario = Database["public"]["Tables"]["usuarios"]["Row"];

@@ -1,29 +1,70 @@
-import React, { useState } from "react";
-import { useAuth } from "../../../supabase/auth";
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import { Upload, FileText, Image, Video, FileIcon } from "lucide-react";
+import { Upload, File, X, Loader2 } from "lucide-react";
 import TopNavigation from "../dashboard/layout/TopNavigation";
 import Sidebar from "../dashboard/layout/Sidebar";
-import { useNavigate } from "react-router-dom";
+import { supabase } from "../../../supabase/supabase";
+
+interface FileUpload {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  file: File;
+}
 
 export default function ContentSubmission() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<FileUpload[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFiles(Array.from(e.target.files));
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = event.target.files;
+    if (!selectedFiles) return;
+
+    const newFiles: FileUpload[] = [];
+    
+    for (const file of Array.from(selectedFiles)) {
+      if (file.size > 10 * 1024 * 1024) { // 10MB
+        toast({
+          title: "Erro",
+          description: `O arquivo ${file.name} excede o limite de 10MB`,
+          variant: "destructive",
+        });
+        continue;
+      }
+
+      const allowedTypes = ['image/png', 'image/jpeg', 'application/pdf', 'video/mp4', 'video/webm'];
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: "Erro",
+          description: `O arquivo ${file.name} não é um tipo permitido (PNG, JPG, PDF, MP4 ou WEBM)`,
+          variant: "destructive",
+        });
+        continue;
+      }
+
+      newFiles.push({
+        id: Math.random().toString(36).substr(2, 9),
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        file: file
+      });
     }
+
+    setFiles((prevFiles) => [...prevFiles, ...newFiles]);
+  };
+
+  const removeFile = (fileId: string) => {
+    setFiles((prevFiles) => prevFiles.filter((file) => file.id !== fileId));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,19 +72,110 @@ export default function ContentSubmission() {
     setIsSubmitting(true);
 
     try {
-      // Aqui seria implementada a lógica de upload para o Supabase Storage
-      // e criação da solicitação no banco de dados
+      // 1. Verificar autenticação
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      // 2. Criar a solicitação
+      const { data: solicitacao, error: solicitacaoError } = await supabase
+        .from("solicitacoes")
+        .insert([
+          {
+            titulo: title,
+            descricao: description,
+            status: "pendente",
+            solicitante_id: user.id
+          }
+        ])
+        .select()
+        .single();
+
+      if (solicitacaoError) {
+        console.error("Erro ao criar solicitação:", solicitacaoError);
+        throw new Error("Não foi possível criar a solicitação");
+      }
+
+      // 3. Criar entrada no histórico
+      const { error: historicoError } = await supabase
+        .from("historico_versoes")
+        .insert([
+          {
+            solicitacao_id: solicitacao.id,
+            usuario_id: user.id,
+            acao: "criado",
+            detalhes: {
+              titulo: title,
+              descricao: description,
+              status: "pendente"
+            }
+          }
+        ]);
+
+      if (historicoError) {
+        console.error("Erro ao criar histórico:", historicoError);
+      }
+
+      // 4. Upload e registro dos arquivos
+      for (const file of files) {
+        try {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+
+          // Upload do arquivo
+          const { error: uploadError } = await supabase.storage
+            .from("solicitacoes")
+            .upload(fileName, file.file, {
+              contentType: file.type
+            });
+
+          if (uploadError) {
+            console.error("Erro no upload:", uploadError);
+            continue;
+          }
+
+          // Obter URL pública
+          const { data: { publicUrl } } = supabase.storage
+            .from("solicitacoes")
+            .getPublicUrl(fileName);
+
+          // Registrar arquivo no banco
+          const { error: arquivoError } = await supabase
+            .from("arquivos")
+            .insert([
+              {
+                solicitacao_id: solicitacao.id,
+                nome_arquivo: file.name,
+                caminho_storage: fileName,
+                tipo_conteudo: file.type.includes('image') ? 'imagem' : file.type.includes('video') ? 'video' : 'pdf',
+                tamanho_bytes: file.size,
+                url_publica: publicUrl
+              }
+            ]);
+
+          if (arquivoError) {
+            console.error("Erro ao registrar arquivo:", arquivoError);
+          }
+        } catch (fileError) {
+          console.error("Erro ao processar arquivo:", fileError);
+        }
+      }
 
       toast({
-        title: "Solicitação enviada com sucesso!",
-        description: "Sua solicitação foi enviada para aprovação.",
+        title: "Sucesso!",
+        description: "Sua solicitação foi enviada com sucesso.",
       });
 
-      navigate("/dashboard");
+      // Limpar formulário
+      setTitle("");
+      setDescription("");
+      setFiles([]);
     } catch (error) {
+      console.error("Erro ao enviar solicitação:", error);
       toast({
-        title: "Erro ao enviar solicitação",
-        description: "Tente novamente mais tarde.",
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Não foi possível enviar sua solicitação. Por favor, tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -51,144 +183,146 @@ export default function ContentSubmission() {
     }
   };
 
-  const getFileIcon = (file: File) => {
-    if (file.type.startsWith("image/")) return <Image className="h-4 w-4" />;
-    if (file.type.startsWith("video/")) return <Video className="h-4 w-4" />;
-    if (file.type === "application/pdf")
-      return <FileText className="h-4 w-4" />;
-    return <FileIcon className="h-4 w-4" />;
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   return (
     <div className="min-h-screen bg-[#f5f5f7]">
       <TopNavigation />
       <div className="flex h-[calc(100vh-64px)] mt-16">
-        <Sidebar activeItem="Submissão" />
+        <Sidebar />
         <main className="flex-1 overflow-auto p-6">
           <div className="max-w-4xl mx-auto">
             <div className="mb-8">
               <h1 className="text-3xl font-semibold text-gray-900 mb-2">
-                Nova Submissão de Conteúdo
+                Nova Solicitação
               </h1>
               <p className="text-gray-600">
-                Envie seus arquivos e conteúdo para aprovação
+                Preencha os detalhes abaixo para enviar uma nova solicitação
               </p>
             </div>
 
-            <Card className="bg-white rounded-2xl shadow-sm border border-gray-100">
-              <CardHeader>
-                <CardTitle className="text-xl font-medium text-gray-900">
-                  Detalhes da Submissão
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="title"
-                      className="text-sm font-medium text-gray-700"
-                    >
-                      Título da Submissão
-                    </Label>
-                    <Input
-                      id="title"
-                      placeholder="Digite o título da sua submissão"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      required
-                      className="h-12 rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="description"
-                      className="text-sm font-medium text-gray-700"
-                    >
-                      Descrição
-                    </Label>
-                    <Textarea
-                      id="description"
-                      placeholder="Descreva o conteúdo que você está enviando..."
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      required
-                      rows={4}
-                      className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">
-                      Arquivos
-                    </Label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
-                      <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600 mb-2">
-                        Arraste e solte seus arquivos aqui ou
-                      </p>
+            <form onSubmit={handleSubmit}>
+              <Card className="bg-white mb-6">
+                <CardContent className="p-6">
+                  <div className="space-y-6">
+                    <div>
+                      <Label htmlFor="title">Título</Label>
                       <Input
-                        type="file"
-                        multiple
-                        accept="image/*,video/*,.pdf"
-                        onChange={handleFileChange}
-                        className="hidden"
-                        id="file-upload"
+                        id="title"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="Digite o título da solicitação"
+                        required
                       />
-                      <Label
-                        htmlFor="file-upload"
-                        className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 cursor-pointer transition-colors"
-                      >
-                        Selecionar Arquivos
-                      </Label>
-                      <p className="text-xs text-gray-500 mt-2">
-                        Suporte para imagens, vídeos e PDFs
-                      </p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="description">Descrição</Label>
+                      <Textarea
+                        id="description"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="Descreva os detalhes da sua solicitação"
+                        required
+                        rows={4}
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Arquivos</Label>
+                      <div className="mt-2">
+                        <div className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                          <div className="space-y-1 text-center">
+                            <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                            <div className="flex text-sm text-gray-600">
+                              <label
+                                htmlFor="file-upload"
+                                className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
+                              >
+                                <span>Upload de arquivos</span>
+                                <input
+                                  id="file-upload"
+                                  name="file-upload"
+                                  type="file"
+                                  multiple
+                                  className="sr-only"
+                                  onChange={handleFileChange}
+                                />
+                              </label>
+                              <p className="pl-1">ou arraste e solte</p>
+                            </div>
+                            <p className="text-xs text-gray-500">
+                              PNG, JPG, PDF, MP4 ou WEBM até 10MB
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     {files.length > 0 && (
-                      <div className="mt-4 space-y-2">
-                        <p className="text-sm font-medium text-gray-700">
-                          Arquivos selecionados:
-                        </p>
-                        {files.map((file, index) => (
+                      <div className="space-y-2">
+                        {files.map((file) => (
                           <div
-                            key={index}
-                            className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg"
+                            key={file.id}
+                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                           >
-                            {getFileIcon(file)}
-                            <span className="text-sm text-gray-700 flex-1">
-                              {file.name}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {(file.size / 1024 / 1024).toFixed(2)} MB
-                            </span>
+                            <div className="flex items-center space-x-3">
+                              <File className="h-5 w-5 text-gray-400" />
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {file.name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {formatFileSize(file.size)}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeFile(file.id)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
                           </div>
                         ))}
                       </div>
                     )}
                   </div>
+                </CardContent>
+              </Card>
 
-                  <div className="flex justify-end space-x-4 pt-6">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => navigate("/dashboard")}
-                      className="px-6"
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={isSubmitting || !title || !description}
-                      className="px-6 bg-blue-500 hover:bg-blue-600"
-                    >
-                      {isSubmitting ? "Enviando..." : "Enviar para Aprovação"}
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
+              <div className="flex justify-end space-x-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setTitle("");
+                    setDescription("");
+                    setFiles([]);
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    "Enviar Solicitação"
+                  )}
+                </Button>
+              </div>
+            </form>
           </div>
         </main>
       </div>

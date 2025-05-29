@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,108 +14,76 @@ import {
 } from "lucide-react";
 import TopNavigation from "../dashboard/layout/TopNavigation";
 import Sidebar from "../dashboard/layout/Sidebar";
+import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "../../../supabase/supabase";
 
 interface HistoryEntry {
   id: string;
-  action:
-    | "criado"
-    | "aprovado"
-    | "rejeitado"
-    | "revisao_solicitada"
-    | "comentario";
-  submissionTitle: string;
-  user: {
-    name: string;
-    email: string;
-    avatar: string;
-    role: "solicitante" | "aprovador";
+  acao: "criado" | "aprovado" | "rejeitado" | "revisao_solicitada" | "comentario";
+  solicitacao_id: string;
+  solicitacao: {
+    titulo: string;
   };
-  timestamp: string;
-  comment?: string;
-  details?: string;
+  usuario: {
+    nome_completo: string;
+    email: string;
+    avatar_url: string;
+    perfil: "solicitante" | "aprovador" | "admin";
+  };
+  criado_em: string;
+  comentario?: string;
+  detalhes?: string;
 }
-
-const mockHistory: HistoryEntry[] = [
-  {
-    id: "1",
-    action: "aprovado",
-    submissionTitle: "Campanha de Marketing Q1",
-    user: {
-      name: "Ana Costa",
-      email: "ana@empresa.com",
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Ana",
-      role: "aprovador",
-    },
-    timestamp: "2024-01-15T16:30:00Z",
-    comment:
-      "Excelente trabalho! O material está alinhado com nossa estratégia de marca.",
-  },
-  {
-    id: "2",
-    action: "revisao_solicitada",
-    submissionTitle: "Conteúdo Blog Corporativo",
-    user: {
-      name: "Carlos Silva",
-      email: "carlos@empresa.com",
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Carlos",
-      role: "aprovador",
-    },
-    timestamp: "2024-01-15T14:15:00Z",
-    comment:
-      "Por favor, ajuste o tom do artigo para ser mais formal e adicione mais dados estatísticos.",
-  },
-  {
-    id: "3",
-    action: "criado",
-    submissionTitle: "Conteúdo Blog Corporativo",
-    user: {
-      name: "João Santos",
-      email: "joao@empresa.com",
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Joao",
-      role: "solicitante",
-    },
-    timestamp: "2024-01-14T14:20:00Z",
-    details: "Submissão criada com 2 arquivos anexados",
-  },
-  {
-    id: "4",
-    action: "criado",
-    submissionTitle: "Campanha de Marketing Q1",
-    user: {
-      name: "Maria Silva",
-      email: "maria@empresa.com",
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Maria",
-      role: "solicitante",
-    },
-    timestamp: "2024-01-15T10:30:00Z",
-    details: "Submissão criada com 2 arquivos anexados",
-  },
-  {
-    id: "5",
-    action: "rejeitado",
-    submissionTitle: "Banner Promocional",
-    user: {
-      name: "Ana Costa",
-      email: "ana@empresa.com",
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Ana",
-      role: "aprovador",
-    },
-    timestamp: "2024-01-13T11:45:00Z",
-    comment:
-      "O design não está alinhado com as diretrizes da marca. Por favor, revise as cores e tipografia.",
-  },
-];
 
 export default function VersionHistory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterAction, setFilterAction] = useState<string>("all");
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  const filteredHistory = mockHistory.filter((entry) => {
+  useEffect(() => {
+    fetchHistory();
+  }, []);
+
+  const fetchHistory = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("historico_solicitacoes")
+        .select(`
+          *,
+          solicitacao:solicitacoes (
+            titulo
+          ),
+          usuario:usuarios (
+            nome_completo,
+            email,
+            avatar_url,
+            perfil
+          )
+        `)
+        .order("criado_em", { ascending: false });
+
+      if (error) throw error;
+
+      setHistory(data || []);
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar o histórico.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredHistory = history.filter((entry) => {
     const matchesSearch =
-      entry.submissionTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      entry.user.name.toLowerCase().includes(searchTerm.toLowerCase());
+      entry.solicitacao.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      entry.usuario.nome_completo.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter =
-      filterAction === "all" || entry.action === filterAction;
+      filterAction === "all" || entry.acao === filterAction;
     return matchesSearch && matchesFilter;
   });
 
@@ -158,11 +126,22 @@ export default function VersionHistory() {
     );
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f5f5f7] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Carregando histórico...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#f5f5f7]">
       <TopNavigation />
       <div className="flex h-[calc(100vh-64px)] mt-16">
-        <Sidebar activeItem="Histórico" />
+        <Sidebar />
         <main className="flex-1 overflow-auto p-6">
           <div className="max-w-6xl mx-auto">
             <div className="mb-8">
@@ -170,7 +149,7 @@ export default function VersionHistory() {
                 Histórico de Versões
               </h1>
               <p className="text-gray-600">
-                Acompanhe todas as interações e mudanças nas submissões
+                Acompanhe todas as interações e mudanças nas solicitações
               </p>
             </div>
 
@@ -209,57 +188,57 @@ export default function VersionHistory() {
 
             {/* Timeline */}
             <div className="space-y-4">
-              {filteredHistory.map((entry, index) => (
+              {filteredHistory.map((entry) => (
                 <Card key={entry.id} className="bg-white">
                   <CardContent className="p-6">
                     <div className="flex items-start space-x-4">
                       <div className="flex-shrink-0">
-                        {getActionIcon(entry.action)}
+                        {getActionIcon(entry.acao)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center space-x-3">
                             <h3 className="text-lg font-medium text-gray-900">
-                              {entry.submissionTitle}
+                              {entry.solicitacao.titulo}
                             </h3>
-                            {getActionBadge(entry.action)}
+                            {getActionBadge(entry.acao)}
                           </div>
                           <span className="text-sm text-gray-500">
-                            {new Date(entry.timestamp).toLocaleString("pt-BR")}
+                            {new Date(entry.criado_em).toLocaleString("pt-BR")}
                           </span>
                         </div>
 
                         <div className="flex items-center space-x-4 mb-3">
                           <div className="flex items-center space-x-2">
                             <Avatar className="h-8 w-8">
-                              <AvatarImage src={entry.user.avatar} />
+                              <AvatarImage src={entry.usuario.avatar_url} />
                               <AvatarFallback>
-                                {entry.user.name[0]}
+                                {entry.usuario.nome_completo[0]}
                               </AvatarFallback>
                             </Avatar>
                             <div>
                               <p className="text-sm font-medium text-gray-900">
-                                {entry.user.name}
+                                {entry.usuario.nome_completo}
                               </p>
                               <p className="text-xs text-gray-500">
-                                {entry.user.email}
+                                {entry.usuario.email}
                               </p>
                             </div>
                           </div>
-                          {getRoleBadge(entry.user.role)}
+                          {getRoleBadge(entry.usuario.perfil)}
                         </div>
 
-                        {entry.comment && (
+                        {entry.comentario && (
                           <div className="bg-gray-50 rounded-lg p-4 mt-3">
                             <p className="text-sm text-gray-700">
-                              {entry.comment}
+                              {entry.comentario}
                             </p>
                           </div>
                         )}
 
-                        {entry.details && (
+                        {entry.detalhes && (
                           <p className="text-sm text-gray-600 mt-2">
-                            {entry.details}
+                            {entry.detalhes}
                           </p>
                         )}
                       </div>
