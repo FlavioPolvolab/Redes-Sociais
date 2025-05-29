@@ -3,8 +3,9 @@ import { supabase } from "./supabase";
 import { useNavigate } from "react-router-dom";
 import { Usuario } from "../src/types/supabase";
 
-interface AuthContextType {
+export interface AuthContextType {
   usuario: Usuario | null;
+  user: Usuario | null; // Alias for backward compatibility
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -18,27 +19,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session) {
-          const { data: userData, error } = await supabase
-            .from("usuarios")
-            .select("*")
-            .eq("id", session.user.id)
-            .single();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        const { data: userData, error } = await supabase
+          .from("usuarios")
+          .select("*")
+          .eq("id", session.user.id)
+          .single();
 
-          if (error) {
-            console.error("Erro ao buscar dados do usuário:", error);
-            setUsuario(null);
-          } else {
-            setUsuario(userData);
-          }
-        } else {
+        if (error) {
+          console.error("Erro ao buscar dados do usuário:", error);
           setUsuario(null);
+        } else {
+          setUsuario(userData);
         }
-        setLoading(false);
+      } else {
+        setUsuario(null);
       }
-    );
+      setLoading(false);
+    });
 
     return () => {
       subscription.unsubscribe();
@@ -61,7 +62,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ usuario, loading, signIn, signOut }}>
+    <AuthContext.Provider
+      value={{ usuario, user: usuario, loading, signIn, signOut }}
+    >
       {children}
     </AuthContext.Provider>
   );

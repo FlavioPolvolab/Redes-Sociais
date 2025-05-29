@@ -33,8 +33,20 @@ export default function Sidebar({ activeItem }: SidebarProps) {
       show: true,
     },
     {
-      name: "Solicitações",
-      path: "/solicitacoes",
+      name: "Nova Solicitação",
+      path: "/solicitacoes/nova",
+      icon: <FileText className="h-5 w-5" />,
+      show: user?.perfil === "solicitante" || user?.perfil === "admin",
+    },
+    {
+      name: "Aprovação",
+      path: "/solicitacoes/aprovacao",
+      icon: <FileText className="h-5 w-5" />,
+      show: user?.perfil === "aprovador" || user?.perfil === "admin",
+    },
+    {
+      name: "Histórico",
+      path: "/solicitacoes/historico",
       icon: <FileText className="h-5 w-5" />,
       show: true,
     },
@@ -46,13 +58,13 @@ export default function Sidebar({ activeItem }: SidebarProps) {
     },
     {
       name: "Configurações",
-      path: "/configuracoes",
+      path: "/settings",
       icon: <Settings className="h-5 w-5" />,
       show: true,
     },
     {
       name: "Ajuda",
-      path: "/ajuda",
+      path: "/help",
       icon: <HelpCircle className="h-5 w-5" />,
       show: true,
     },

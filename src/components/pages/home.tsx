@@ -57,7 +57,8 @@ export default function Home() {
             Bem-vindo ao Sistema de Gestão de Conteúdo
           </h1>
           <p className="text-lg text-gray-600 mb-8">
-            Uma plataforma completa para gerenciar e aprovar conteúdo de forma eficiente.
+            Uma plataforma completa para gerenciar e aprovar conteúdo de forma
+            eficiente.
           </p>
           {!user && (
             <div className="flex justify-center space-x-4">

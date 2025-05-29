@@ -10,17 +10,23 @@ import Users from "./components/pages/users";
 import Settings from "./components/pages/settings";
 import Success from "./components/pages/success";
 import Home from "./components/pages/home";
+import Help from "./components/pages/help";
 import ContentSubmission from "./components/pages/content-submission";
 import ContentApproval from "./components/pages/content-approval";
 import VersionHistory from "./components/pages/version-history";
-import { AuthProvider, useAuth } from "../supabase/auth";
-import type { AuthContextType } from "../types/auth";
+import { AuthProvider, useAuth, AuthContextType } from "./supabase/auth";
 import { Toaster } from "./components/ui/toaster";
 import { LoadingScreen, LoadingSpinner } from "./components/ui/loading-spinner";
 import ContentDetails from "./components/pages/content-details";
 import UserManagement from "./components/pages/user-management";
 
-function PrivateRoute({ children, requiredPerfil }: { children: React.ReactNode; requiredPerfil?: string[] }) {
+function PrivateRoute({
+  children,
+  requiredPerfil,
+}: {
+  children: React.ReactNode;
+  requiredPerfil?: string[];
+}) {
   const auth = useAuth();
   const { user, loading } = auth;
 
@@ -156,6 +162,7 @@ function AppRoutes() {
         />
         <Route path="/home" element={<Home />} />
         <Route path="/success" element={<Success />} />
+        <Route path="/help" element={<Help />} />
         <Route
           path="/usuarios"
           element={

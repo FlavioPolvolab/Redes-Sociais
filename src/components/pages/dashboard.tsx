@@ -13,7 +13,7 @@ import {
 import TopNavigation from "../dashboard/layout/TopNavigation";
 import Sidebar from "../dashboard/layout/Sidebar";
 import { supabase } from "../../../supabase/supabase";
-import { useAuth } from "../../../supabase/auth";
+import { useAuth } from "../../supabase/auth";
 import { useNavigate } from "react-router-dom";
 import {
   Dialog,

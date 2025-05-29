@@ -22,8 +22,8 @@ import {
 import { Loader2, UserPlus } from "lucide-react";
 import TopNavigation from "../dashboard/layout/TopNavigation";
 import Sidebar from "../dashboard/layout/Sidebar";
-import { supabase } from "../../../supabase/supabase";
-import { useAuth, AuthContextType } from "../../../supabase/auth";
+import { supabase } from "../../supabase/supabase";
+import { useAuth, AuthContextType } from "../../supabase/auth";
 import { useNavigate } from "react-router-dom";
 import { PerfilUsuario } from "@/types/supabase";
 
@@ -279,17 +279,15 @@ export default function UserManagement() {
                     <TableBody>
                       {usuarios.map((usuario) => (
                         <TableRow key={usuario.id}>
-                          <TableCell>
-                            {usuario.nome_completo}
-                          </TableCell>
+                          <TableCell>{usuario.nome_completo}</TableCell>
                           <TableCell>{usuario.email}</TableCell>
                           <TableCell className="capitalize">
                             {usuario.perfil}
                           </TableCell>
                           <TableCell>
-                            {new Date(usuario.criado_em || "").toLocaleDateString(
-                              "pt-BR",
-                            )}
+                            {new Date(
+                              usuario.criado_em || "",
+                            ).toLocaleDateString("pt-BR")}
                           </TableCell>
                         </TableRow>
                       ))}
